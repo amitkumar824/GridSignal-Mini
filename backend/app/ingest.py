@@ -5,6 +5,11 @@ import sys
 from pathlib import Path
 from typing import Dict, Any, Optional
 
+# Ensure backend root is on sys.path for direct script execution
+_backend_root = Path(__file__).resolve().parent.parent
+if str(_backend_root) not in sys.path:
+    sys.path.insert(0, str(_backend_root))
+
 import app.config as config
 from app.correlate import parse_iso_datetime, run_correlation
 from app.database import get_connection, init_db
