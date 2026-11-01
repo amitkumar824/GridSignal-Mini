@@ -98,3 +98,4 @@ def test_api_endpoints_with_seed_data(test_client, temp_db):
     assert boundary_alert is not None
     assert boundary_alert["distance_ft"] == 200.0
     assert boundary_alert["time_gap_minutes"] == 360.0
+

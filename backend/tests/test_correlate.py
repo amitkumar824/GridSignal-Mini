@@ -126,3 +126,4 @@ def test_one_to_many_matches(db_conn):
 
     alert_count = run_correlation(db_conn)
     assert alert_count == 2
+

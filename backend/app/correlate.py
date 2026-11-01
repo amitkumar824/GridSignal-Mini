@@ -103,3 +103,4 @@ def run_correlation(conn: sqlite3.Connection) -> int:
     conn.commit()
 
     return len(matched_pairs)
+

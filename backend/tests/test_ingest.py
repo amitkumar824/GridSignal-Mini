@@ -145,3 +145,4 @@ def test_replay_batch_integration(db_conn):
     cursor.execute("SELECT COUNT(*) AS c FROM incidents;")
     total = cursor.fetchone()["c"]
     assert total == 11 + stats["inserted_new"]
+

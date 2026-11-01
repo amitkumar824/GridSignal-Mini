@@ -17,7 +17,9 @@ dist/
 # Databases
 *.db-journal
 backend/gridsignal.db
+db.sqlite3
 
 # OS
 .DS_Store
 Thumbs.db
+

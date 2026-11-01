@@ -141,3 +141,4 @@ def create_dashboard_screenshot():
 
 if __name__ == "__main__":
     create_dashboard_screenshot()
+
