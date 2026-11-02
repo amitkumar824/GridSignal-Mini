@@ -33,6 +33,18 @@ class Incident(models.Model):
     def has_coordinates(self) -> bool:
         return self.x_ft is not None and self.y_ft is not None
 
+    def to_dict(self):
+        return {
+            "incident_id": self.incident_id,
+            "utility_type": self.utility_type,
+            "reported_at": self.reported_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "x_ft": self.x_ft,
+            "y_ft": self.y_ft,
+            "severity": self.severity,
+            "status": self.status,
+            "area": self.area,
+        }
+
 
 class Alert(models.Model):
     gas_incident = models.ForeignKey(
@@ -60,3 +72,18 @@ class Alert(models.Model):
 
     def __str__(self):
         return f"Alert: {self.gas_incident_id} + {self.electric_incident_id} ({self.distance_ft:.1f} ft, {self.time_gap_minutes:.1f} min)"
+
+    def to_dict(self):
+        return {
+            "gas_incident_id": self.gas_incident_id,
+            "electric_incident_id": self.electric_incident_id,
+            "distance_ft": self.distance_ft,
+            "time_gap_minutes": self.time_gap_minutes,
+            # Joined fields for UI presentation
+            "gas_severity": self.gas_incident.severity,
+            "gas_status": self.gas_incident.status,
+            "gas_reported_at": self.gas_incident.reported_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "electric_severity": self.electric_incident.severity,
+            "electric_status": self.electric_incident.status,
+            "electric_reported_at": self.electric_incident.reported_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        }

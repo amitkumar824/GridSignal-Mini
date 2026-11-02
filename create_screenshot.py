@@ -3,12 +3,10 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 def create_dashboard_screenshot():
-    # Dimensions: 1280 x 820 (standard modern desktop browser view)
     width, height = 1280, 840
     img = Image.new("RGB", (width, height), color="#f8fafc")
     draw = ImageDraw.Draw(img)
 
-    # Helper fonts (fallback to default if ttf not accessible)
     try:
         font_title = ImageFont.truetype("arial.ttf", 20)
         font_subtitle = ImageFont.truetype("arial.ttf", 12)
@@ -27,15 +25,19 @@ def create_dashboard_screenshot():
     draw.rounded_rectangle([24, 14, 60, 50], radius=6, fill="#0d9488")
     draw.text((32, 22), "GS", fill="#0f172a", font=font_title)
     draw.text((72, 17), "GridSignal Mini", fill="#ffffff", font=font_title)
-    draw.rounded_rectangle([220, 20, 260, 36], radius=4, fill="#134e4a")
-    draw.text((228, 22), "v1.0", fill="#2dd4bf", font=font_badge)
+    draw.rounded_rectangle([220, 20, 310, 36], radius=4, fill="#134e4a")
+    draw.text((228, 22), "Django Edition", fill="#2dd4bf", font=font_badge)
     draw.text((72, 41), "Utility Incident Intelligence & Cross-Type Pair Analytics", fill="#94a3b8", font=font_subtitle)
 
     # Top right pills
     # Health status pill
-    draw.rounded_rectangle([820, 18, 950, 46], radius=6, fill="#1e293b")
-    draw.ellipse([832, 28, 840, 36], fill="#34d399")
-    draw.text((848, 24), "API: Healthy", fill="#e2e8f0", font=font_subtitle)
+    draw.rounded_rectangle([720, 18, 840, 46], radius=6, fill="#1e293b")
+    draw.ellipse([732, 28, 740, 36], fill="#34d399")
+    draw.text((748, 24), "API: Healthy", fill="#e2e8f0", font=font_subtitle)
+
+    # Admin button
+    draw.rounded_rectangle([850, 18, 950, 46], radius=6, fill="#334155")
+    draw.text((862, 25), "Django Admin", fill="#ffffff", font=font_stat_label)
 
     # Action buttons
     draw.rounded_rectangle([960, 18, 1070, 46], radius=6, fill="#0d9488")
@@ -107,17 +109,11 @@ def create_dashboard_screenshot():
         draw.rectangle([24, row_y, width - 24, row_y + 44], fill=fill_bg, outline="#f1f5f9")
 
         draw.text((40, row_y + 14), num, fill="#94a3b8", font=font_mono)
-
-        # Gas info
         draw.text((80, row_y + 12), gas_info, fill="#c2410c", font=font_body)
-        # Elec info
         draw.text((280, row_y + 12), elec_info, fill="#1d4ed8", font=font_body)
-        # Distance
         draw.text((480, row_y + 12), dist, fill="#0f172a", font=font_mono)
-        # Time gap
         draw.text((680, row_y + 12), gap, fill="#0f172a", font=font_mono)
 
-        # Badge
         badge_x = 880
         badge_y = row_y + 10
         if is_exact:
@@ -129,11 +125,10 @@ def create_dashboard_screenshot():
 
         row_y += 44
 
-    # 5. Footer status
-    draw.text((40, height - 32), "GridSignal Mini · Internal Utility Incident Intelligence Platform · FastAPI + SQLite + React", fill="#94a3b8", font=font_subtitle)
-    draw.text((width - 240, height - 32), "Persistent Storage: gridsignal.db", fill="#94a3b8", font=font_mono)
+    draw.text((40, height - 32), "GridSignal Mini · Internal Utility Incident Intelligence Platform · Django + SQLite + React", fill="#94a3b8", font=font_subtitle)
+    draw.text((width - 240, height - 32), "Persistent Storage: db.sqlite3", fill="#94a3b8", font=font_mono)
 
-    out_dir = Path("E:/ny/docs")
+    out_dir = Path(__file__).resolve().parent / "docs"
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / "dashboard_screenshot.png"
     img.save(out_path, format="PNG")
@@ -141,4 +136,3 @@ def create_dashboard_screenshot():
 
 if __name__ == "__main__":
     create_dashboard_screenshot()
-

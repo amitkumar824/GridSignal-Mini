@@ -1,115 +1,201 @@
-# GridSignal Mini — System Architecture & Design Documentation (Django & DRF)
+# GridSignal Mini — System Architecture Document
 
-## 1. System Architecture Diagram
+## 1. Executive Summary
+
+**GridSignal Mini** is a specialized utility incident intelligence and cross-type analytics platform built with **Python 3.13**, **Django 6.1**, **SQLite**, and a **React 18** Single Page Application (SPA). 
+
+The platform continuously ingests independent **GAS** and **ELECTRIC** utility incidents, normalizes spatio-temporal metadata, resolves conflicts via a deterministic **Last-Write-Wins (LWW)** deduplication policy, and executes an automated correlation engine to detect dangerous cross-utility hazards (e.g., gas leaks adjacent to electric arcs or downed wires).
+
+---
+
+## 2. High-Level System Architecture
 
 ```mermaid
 flowchart TD
-    subgraph Data_Sources["Data Sources (CSV Batches)"]
-        Seed["seed_incidents.csv\n(Initial Batch: 11 rows)"]
-        Replay["replay_batch.csv\n(Incremental / Duplicates / Malformed)"]
+    subgraph ClientLayer["Presentation Layer (Client)"]
+        UI["React 18 SPA Dashboard<br/>(Tailwind CSS, Lucide Icons)"]
+        AdminUI["Django Admin Console<br/>(/admin/)"]
     end
 
-    subgraph Ingestion_Layer["Ingestion & Validation Engine (incidents/ingest.py)"]
-        Parser["CSV DictReader\nUTF-8 & Header Normalization"]
-        ValTS["Timestamp Validator\nUTC ISO-8601 Verification"]
-        WarnLog["Warning Logger\n(Skip Bad Timestamps)"]
-        DedupPolicy{"Incident ID\nExisting in Store?"}
-        IdenticalCheck{"All Attributes\nIdentical?"}
-        InsertOp["Incident.objects.create()\n(New Record)"]
-        UpdateOp["Incident.objects.save()\n(Last-Write-Wins Update)"]
-        SkipOp["NO-OP / Ignore\n(Identical Duplicate)"]
+    subgraph APILayer["API & Ingestion Service (Django 6.1)"]
+        Router["Django URLConf (gridsignal.urls)"]
+        Cors["SimpleCorsMiddleware"]
+        
+        subgraph Endpoints["REST API Endpoints"]
+            Health["GET /health"]
+            Incidents["GET /incidents(?utility_type=)"]
+            Alerts["GET /alerts"]
+            Summary["GET /summary"]
+            SeedIngest["POST /api/import/seed"]
+            ReplayIngest["POST /api/import/replay"]
+        end
+        
+        subgraph CoreEngine["Core Processing Modules"]
+            IngestEng["Ingestion & Deduplication Engine<br/>(gridsignal.ingest)"]
+            CorrEng["Cross-Type Correlation Engine<br/>(gridsignal.correlate)"]
+        end
     end
 
-    subgraph Persistence_Layer["Storage Layer (SQLite: db.sqlite3)"]
-        TableIncidents[("incidents_incident Table\n• incident_id (PK)\n• utility_type ('GAS'|'ELECTRIC')\n• reported_at (UTC DateTime)\n• x_ft, y_ft (Nullable Float)\n• severity, status, area")]
-        TableAlerts[("incidents_alert Table\n• id (PK AUTOINCREMENT)\n• gas_incident_id (FK)\n• electric_incident_id (FK)\n• distance_ft (Float)\n• time_gap_minutes (Float)\n• UniqueConstraint(gas, electric)")]
+    subgraph DataLayer["Persistence Layer"]
+        DB[("SQLite Database<br/>(db.sqlite3)")]
+        IncidentTable["Incident Table<br/>(incident_id PK, utility_type, reported_at, x_ft, y_ft, ...)"]
+        AlertTable["Alert Table<br/>(gas_id, electric_id, distance_ft, time_gap_minutes)"]
     end
 
-    subgraph Correlation_Layer["Correlation Engine (incidents/correlate.py)"]
-        FetchEligible["Filter: utility_type in ('GAS','ELECTRIC')\nAND x_ft IS NOT NULL AND y_ft IS NOT NULL"]
-        CrossJoin["Evaluate Pairs (GAS_i, ELECTRIC_j)\n1. Planar Dist = sqrt((x1-x2)² + (y1-y2)²)\n2. Time Gap = |t1 - t2| in minutes"]
-        FilterRules{"Rules Satisfied?\n• Dist ≤ 200 ft (inclusive)\n• Time Gap ≤ 360 min (inclusive)"}
-        SyncAlerts["Atomic Alert Sync\ntransaction.atomic()\nAlert.objects.bulk_create()"]
+    subgraph ExternalSources["External CSV Ingestion Sources"]
+        SeedCSV["data/seed_incidents.csv"]
+        ReplayCSV["data/replay_batch.csv"]
+        CLIIngest["python manage.py ingest [file]"]
     end
 
-    subgraph API_Layer["Django REST Framework Views (incidents/views.py)"]
-        GetHealth["GET /health\nHealthView (Readiness & DB Check)"]
-        GetIncidents["GET /incidents?utility_type=\nIncidentListView (Supports filtering)"]
-        GetAlerts["GET /alerts\nAlertListView (Unique matched pairs)"]
-        GetSummary["GET /summary\nSummaryView (Dynamic aggregate counts)"]
-        PostImport["POST /api/import/{seed|replay}\nImportSeedView / ImportReplayView"]
-        DjangoAdmin["GET /admin/\nDjango Admin GUI for live records"]
-    end
-
-    subgraph Presentation_Layer["User Interface (React Dashboard)"]
-        StatCards["4 Metric Cards\n• Total Incidents (11)\n• Gas Incidents (4)\n• Electric Incidents (7)\n• Correlated Alerts (6)"]
-        AlertsTable["Correlated Alerts Table\n• Paired IDs\n• Distance & Time Gap\n• Boundary Limit Badges"]
-        InventoryTable["Incident Inventory Table\n• Type Filter (GAS / ELECTRIC)\n• Missing Coords Flags\n• Search & Severity Badges"]
-    end
-
-    %% Data Flow Connections
-    Seed --> Parser
-    Replay --> Parser
-    Parser --> ValTS
-    ValTS -- "Invalid Timestamp" --> WarnLog
-    ValTS -- "Valid ISO-8601" --> DedupPolicy
-
-    DedupPolicy -- "New incident_id" --> InsertOp
-    DedupPolicy -- "Existing incident_id" --> IdenticalCheck
-    IdenticalCheck -- "Match" --> SkipOp
-    IdenticalCheck -- "Mismatch" --> UpdateOp
-
-    InsertOp --> TableIncidents
-    UpdateOp --> TableIncidents
-
-    TableIncidents --> FetchEligible
-    FetchEligible --> CrossJoin
-    CrossJoin --> FilterRules
-    FilterRules -- "Matches" --> SyncAlerts
-    SyncAlerts --> TableAlerts
-
-    TableIncidents -.-> GetIncidents
-    TableIncidents -.-> GetSummary
-    TableAlerts -.-> GetAlerts
-    TableAlerts -.-> GetSummary
-    TableIncidents -.-> DjangoAdmin
-    TableAlerts -.-> DjangoAdmin
-    PostImport --> Parser
-
-    GetHealth --> Presentation_Layer
-    GetSummary --> StatCards
-    GetAlerts --> AlertsTable
-    GetIncidents --> InventoryTable
+    UI -->|"HTTP JSON Requests"| Cors
+    AdminUI --> Router
+    Cors --> Router
+    Router --> Endpoints
+    
+    CLIIngest --> IngestEng
+    SeedIngest --> IngestEng
+    ReplayIngest --> IngestEng
+    
+    IngestEng -->|"1. Parse & Validate"| IngestEng
+    IngestEng -->|"2. LWW Upsert / Skip Identical"| DB
+    IngestEng -->|"3. Trigger Re-correlation"| CorrEng
+    
+    CorrEng -->|"Query Gas & Electric"| DB
+    CorrEng -->|"Compute Euclidean & Time Window"| DB
+    CorrEng -->|"Atomic Alert Table Sync"| AlertTable
+    
+    Endpoints --> IncidentTable
+    Endpoints --> AlertTable
 ```
 
 ---
 
-## 2. Architecture & Data Flow Explanation
+## 3. Core Domain & Mathematical Models
 
-1. **Ingestion & Validation**: Data files (`data/seed_incidents.csv`, `data/replay_batch.csv`) are processed via the custom Django management command `python manage.py ingest <path>` or via API POST triggers. Each row is validated; malformed timestamps are safely discarded with logged warnings without halting the batch, while blank coordinates are ingested as `None` (`NULL`).
-2. **Persistence Layer**: Data is persisted in SQLite (`db.sqlite3`) through Django ORM models (`Incident` and `Alert`). The `Incident` model utilizes `incident_id` as primary key and indexes `(utility_type, x_ft, y_ft)` for optimized spatial/temporal queries.
-3. **Deduplication & Conflict Handling**: When an imported record matches an existing `incident_id`, all attributes are compared. Identical records are safely skipped with zero mutations; conflicting records apply a **Last-Write-Wins (LWW)** policy, updating the model instance with the latest telemetry.
-4. **Correlation Engine**: The matching engine queries all `GAS` and `ELECTRIC` incidents that possess non-null planar coordinates. It executes a cross-type pairing evaluating synthetic Euclidean planar distance (`sqrt((x1-x2)² + (y1-y2)²)`) and absolute reporting-time difference (`|t_gas - t_electric|`).
-5. **Correlation Rules & Boundary Inclusivity**: A pair is emitted if and only if planar distance is $\le 200.0\text{ ft}$ and time difference is $\le 360.0\text{ min}$ (6 hours). Both boundary limits are strictly inclusive (meaning exactly $200.0\text{ ft}$ and $360.0\text{ min}$ match, while $200.01\text{ ft}$ or $360.01\text{ min}$ are excluded).
-6. **Alert Idempotency**: Pairs are normalized into unique `(gas_incident, electric_incident)` records with a Django ORM `UniqueConstraint`, ensuring that successive runs produce deterministic alert sets without duplicate rows.
-7. **API Layer**: Django REST Framework exposes standard JSON endpoints: `GET /health` (readiness probe), `GET /incidents` (supporting `?utility_type=GAS|ELECTRIC`), `GET /alerts` (returning paired incident IDs, planar distance in feet, and time gap in minutes), and `GET /summary` (delivering dynamic aggregate counts).
-8. **User Interface**: The browser dashboard automatically polls and renders live data from the API into 4 key metric cards, an interactive alert table with proximity gauges and exact-boundary badges, and a searchable incident inventory.
-9. **Admin Panel**: Django Admin (`/admin/`) is fully configured, enabling the interviewer to inspect, search, and modify incident records during the live screen-sharing walkthrough.
+### 3.1 Cross-Type Correlation Criteria
+A correlation event (hazard pair) is triggered if and only if **all** of the following conditions hold:
+
+1. **Cross-Utility Distinction**:
+   $$\text{Pair} = (I_{\text{GAS}}, I_{\text{ELECTRIC}})$$
+   Same-type incidents (GAS–GAS or ELECTRIC–ELECTRIC) are strictly prohibited from generating alerts.
+
+2. **Spatial Proximity (Planar Euclidean Distance)**:
+   Both incidents must possess non-null coordinates $(x, y) \in \mathbb{R}^2$. The planar Euclidean distance $D$ must not exceed $200.0\text{ ft}$:
+   $$D = \sqrt{(x_{\text{GAS}} - x_{\text{ELECTRIC}})^2 + (y_{\text{GAS}} - y_{\text{ELECTRIC}})^2} \le 200.0\text{ ft}$$
+   *Boundary Rule*: Exactly $200.00\text{ ft}$ is a **valid match** (inclusive). $200.01\text{ ft}$ is rejected.
+
+3. **Temporal Proximity (Absolute Time Delta)**:
+   The reporting timestamps $t_{\text{GAS}}$ and $t_{\text{ELECTRIC}}$ are evaluated in UTC. The absolute time delta $\Delta t$ must not exceed $360.0\text{ minutes}$ ($6.0\text{ hours}$):
+   $$\Delta t = \frac{|t_{\text{GAS}} - t_{\text{ELECTRIC}}|}{60} \le 360.0\text{ minutes}$$
+   *Boundary Rule*: Exactly $360.00\text{ minutes}$ is a **valid match** (inclusive). $360.01\text{ minutes}$ is rejected.
+   *Symmetry*: The order of reporting is irrelevant ($t_{\text{GAS}} \ge t_{\text{ELECTRIC}}$ or $t_{\text{GAS}} < t_{\text{ELECTRIC}}$).
+
+4. **Missing Coordinates Policy**:
+   If either incident has $x = \text{NULL}$ or $y = \text{NULL}$, the incident is stored and retained in the catalog (`GET /incidents`), but is **excluded from spatial evaluation** ($D = \infty$, no alert created).
+
+5. **Attribute Independence**:
+   Correlation is invariant to `severity`, `status`, or `area_code`. Matching evaluates solely utility type, planar coordinates, and reporting timestamp.
 
 ---
 
-## 3. Design Tradeoffs
+## 4. Ingestion & Deduplication State Machine
 
-### Tradeoff 1: In-Memory Cross-Join vs. Spatial Indexing (R-Tree / PostGIS)
-- **Current Approach**: The correlation engine queries eligible GAS and ELECTRIC records and performs an $O(N \times M)$ pairwise distance and temporal comparison.
-- **Rationale**: For take-home, regional, or departmental workloads ($\le 10,000$ active incidents), an $O(N \times M)$ comparison in Python executes in under 15 milliseconds. It avoids bulky external C-dependencies (such as GDAL, GEOS, or SpatiaLite) and allows the evaluation logic to be completely transparent and easily modified during screen sharing.
-- **Scale-Up Path**: In an enterprise deployment handling millions of continuous IoT pings, this should be upgraded to an R-Tree spatial index (e.g., SQLite R*Tree module or PostgreSQL with PostGIS GiST indexes) paired with a temporal B-tree index, bounding search queries to a bounding box of $[x - 200, x + 200]$ and $[t - 6\text{h}, t + 6\text{h}]$ to achieve $O(\log N)$ query complexity.
+```mermaid
+stateDiagram-v2
+    [*] --> ReadCSVRow: Parse CSV Record
+    
+    ReadCSVRow --> CheckTimestamp: Validate reported_at
+    CheckTimestamp --> SkipMalformed: Invalid Format (logs warning)
+    SkipMalformed --> [*]
+    
+    CheckTimestamp --> LookupDB: Valid ISO/Standard Timestamp
+    LookupDB --> ExistingRecord: incident_id exists in DB?
+    
+    ExistingRecord --> CompareFields: Yes
+    CompareFields --> SkipIdentical: All fields identical
+    SkipIdentical --> [*]: No-op
+    
+    CompareFields --> ApplyLWW: Any field differs
+    ApplyLWW --> UpdateDB: Last-Write-Wins update
+    
+    ExistingRecord --> InsertNew: No
+    InsertNew --> InsertDB: Create Incident row
+    
+    UpdateDB --> RunCorrelation: Batch Complete
+    InsertDB --> RunCorrelation: Batch Complete
+    
+    RunCorrelation --> SyncAlerts: Transactional Re-evaluation
+    SyncAlerts --> [*]: Done
+```
 
-### Tradeoff 2: Full Alert Recalculation vs. Incremental Event-Driven Pairing
-- **Current Approach**: After every CSV ingestion batch, the correlation engine recalculates the alert set from persistent state inside a database transaction (`transaction.atomic()`).
-- **Rationale**: Guaranteed idempotency and zero state-drift. If an existing incident's coordinates or timestamp are updated via a conflicting duplicate, full recalculation automatically cleans up invalid alerts and establishes new matches without requiring complex change-data-capture logic.
-- **Scale-Up Path**: An event-driven architecture using Kafka or Redis streams where each newly ingested incident only checks candidate counterparts within the spatio-temporal boundary, emitting incremental alert events.
+### Deduplication Rules:
+1. **Identical Duplicate**: If an incoming row matches an existing `incident_id` and all stored fields (`utility_type`, `reported_at`, `x_ft`, `y_ft`, `severity`, `status`, `area_code`) are identical, the row is safely skipped.
+2. **Conflicting Duplicate (Last-Write-Wins)**: If an incoming row contains an existing `incident_id` with changed coordinates, severity, or timestamp, the existing record is updated with the latest incoming record.
+3. **Malformed Timestamp**: Rows with unparseable timestamp formats (e.g., `'invalid-date-string'`, `'2026/13/45'`) are dropped with a descriptive logged warning (`Row X: Skipping incident '...' due to malformed timestamp...`). They never halt ingestion or pollute the database.
 
-### Tradeoff 3: Relational SQLite vs. Distributed Database
-- **Current Approach**: Embedded SQLite database (`db.sqlite3`) with foreign keys and WAL mode.
-- **Rationale**: Zero external setup requirements, instant automated test execution via ephemeral databases, deterministic file-level persistence, and identical SQL semantics to PostgreSQL.
+---
+
+## 5. Database Schema Design
+
+### 5.1 `Incident` Entity
+| Column | Type | Constraints / Modifiers | Description |
+| :--- | :--- | :--- | :--- |
+| `incident_id` | `VARCHAR(64)` | `PRIMARY KEY` | Unique identifier (e.g., `INC-1001`) |
+| `utility_type` | `VARCHAR(16)` | `NOT NULL`, `INDEX` | `GAS` or `ELECTRIC` |
+| `reported_at` | `DATETIME` | `NOT NULL`, `INDEX` | UTC ISO-8601 timestamp |
+| `x_ft` | `FLOAT` | `NULLABLE` | Planar X coordinate in feet |
+| `y_ft` | `FLOAT` | `NULLABLE` | Planar Y coordinate in feet |
+| `severity` | `VARCHAR(32)` | `DEFAULT 'MEDIUM'` | `LOW`, `MEDIUM`, `HIGH`, `CRITICAL` |
+| `status` | `VARCHAR(32)` | `DEFAULT 'OPEN'` | `OPEN`, `RESOLVED`, `INVESTIGATING` |
+| `area_code` | `VARCHAR(32)` | `NULLABLE` | Optional geographic / district code |
+| `created_at` | `DATETIME` | `AUTO_NOW_ADD` | Audit creation timestamp |
+| `updated_at` | `DATETIME` | `AUTO_NOW` | Audit last-modified timestamp |
+
+### 5.2 `Alert` Entity
+| Column | Type | Constraints / Modifiers | Description |
+| :--- | :--- | :--- | :--- |
+| `id` | `BIGINT` | `PRIMARY KEY AUTOINCREMENT` | Alert surrogate key |
+| `gas_incident_id` | `VARCHAR(64)` | `FK -> Incident.incident_id`, `ON DELETE CASCADE` | Associated Gas incident |
+| `electric_incident_id` | `VARCHAR(64)` | `FK -> Incident.incident_id`, `ON DELETE CASCADE` | Associated Electric incident |
+| `distance_ft` | `FLOAT` | `NOT NULL` | Planar distance ($\le 200.0$) |
+| `time_gap_minutes` | `FLOAT` | `NOT NULL` | Reporting delta in minutes ($\le 360.0$) |
+| `created_at` | `DATETIME` | `AUTO_NOW_ADD` | Detection timestamp |
+
+*Composite Unique Constraint*: `UniqueConstraint(fields=['gas_incident', 'electric_incident'])` guarantees zero duplicate alerts between any pair of incidents.
+
+---
+
+## 6. REST API Interface Specification
+
+| Method | Path | Query / Body | Response Description |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/health` | None | Returns service health status and DB connectivity check (`200 OK`). |
+| `GET` | `/incidents` | `?utility_type=GAS\|ELECTRIC` | Returns list of all incidents (including missing coordinates), optionally filtered. |
+| `GET` | `/alerts` | None | Returns list of all correlated GAS-ELECTRIC pairs with distance and time gap. |
+| `GET` | `/summary` | None | Returns dynamic counts: `total_incidents`, `total_gas`, `total_electric`, `total_alerts`. |
+| `POST` | `/api/import/seed` | Empty | Ingests `data/seed_incidents.csv` and returns ingestion statistics. |
+| `POST` | `/api/import/replay`| Empty | Ingests `data/replay_batch.csv` with duplicates/conflicts and updates alerts. |
+| `GET` | `/` | None | Serves the rich interactive React 18 single-page dashboard. |
+| `GET` | `/admin/` | Browser session | Django Admin management console. |
+
+---
+
+## 7. Frontend Architecture
+
+The frontend is implemented as a modern React 18 dashboard utilizing Tailwind CSS and Lucide icons:
+1. **Embedded Django Dashboard (`static/index.html`)**: Zero-build single-file React 18 application served directly by Django's root route `/`. Allows immediate out-of-the-box operation with zero node/npm dependency.
+2. **Standalone Frontend (`frontend/`)**: Vite + React single-page app configured with `vercel.json` for independent static CDN deployment on Vercel.
+
+---
+
+## 8. Verification & Test Suite
+
+The test suite in `gridsignal/tests.py` verifies all requirements with 17 automated tests:
+- **Exact Boundaries**: Exactly $200.0\text{ ft}$ and $360.0\text{ min}$ match.
+- **Outside Limits**: $200.01\text{ ft}$ and $360.01\text{ min}$ fail correlation.
+- **Missing Coordinates**: Stored cleanly as `NULL`, never generates false alerts.
+- **Time Invariance**: Reversible order ($t_{\text{GAS}} < t_{\text{ELECTRIC}}$ vs $t_{\text{GAS}} > t_{\text{ELECTRIC}}$) produces identical alerts.
+- **Deduplication**: Identical duplicates are skipped, conflicting duplicates trigger Last-Write-Wins updates.
+- **Malformed Timestamps**: Logged with warnings, skipped without application failure.
+- **All REST Endpoints**: Validates JSON payloads, status codes, and filtering.

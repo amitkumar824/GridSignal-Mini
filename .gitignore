@@ -1,25 +1,34 @@
-# Python
+# Python & Bytecode
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
-.Python
+
+# Environments
+.venv/
 env/
 venv/
 ENV/
-.pytest_cache/
 
-# Node
+# Database
+*.sqlite3
+db.sqlite3-journal
+
+# Logs & Temp
+*.log
+local_settings.py
+.env
+
+# Frontend / Node
 node_modules/
 dist/
-.env.local
+.vite/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# Databases
-*.db-journal
-backend/gridsignal.db
-db.sqlite3
-
-# OS
+# OS / Editor
 .DS_Store
 Thumbs.db
-
+.vscode/
+.idea/

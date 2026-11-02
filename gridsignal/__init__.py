@@ -1,1 +1,0 @@
-# GridSignal Django Project

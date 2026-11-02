@@ -1,6 +1,6 @@
 import math
 from datetime import datetime, timezone
-from typing import Tuple, Optional, List
+from typing import Tuple, Optional
 from django.conf import settings
 from django.db import transaction
 from .models import Incident, Alert
@@ -55,7 +55,6 @@ def run_correlation() -> int:
     Idempotently populates the Alert table with unique (gas_incident, electric_incident) pairs.
     Returns the total number of alerts stored.
     """
-    # Fetch GAS incidents with coordinates
     gas_records = list(
         Incident.objects.filter(
             utility_type=Incident.UTILITY_GAS,
@@ -64,7 +63,6 @@ def run_correlation() -> int:
         )
     )
 
-    # Fetch ELECTRIC incidents with coordinates
     elec_records = list(
         Incident.objects.filter(
             utility_type=Incident.UTILITY_ELECTRIC,

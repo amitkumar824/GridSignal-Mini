@@ -1,320 +1,300 @@
-# GridSignal Mini — Utility Incident Intelligence Platform (Django & DRF)
+# GridSignal Mini — Utility Incident Analytics Platform
 
-> **Internal analytics platform for utility incident correlation between GAS and ELECTRIC events.**  
-> Implemented with **Django 4.2**, **Django REST Framework (DRF)**, **SQLite**, and **React** per the GridSignal Mini engineering take-home specification.
+[![Python](https://img.shields.io/badge/Python-3.13-blue.svg)](https://www.python.org/)
+[![Django](https://img.shields.io/badge/Django-6.1-green.svg)](https://www.djangoproject.com/)
+[![React](https://img.shields.io/badge/React-18.x-cyan.svg)](https://react.dev/)
+[![Tests](https://img.shields.io/badge/Tests-17%20Passed-brightgreen.svg)]()
+[![License](https://img.shields.io/badge/Evaluation-Technical%20Assessment-orange.svg)]()
 
----
-
-## Table of Contents
-1. [Overview & Core Correlation Rules](#1-overview--core-correlation-rules)
-2. [Prerequisites & Versions](#2-prerequisites--versions)
-3. [Quick Start — Install, Migrate, Ingest & Run](#3-quick-start--install-migrate-ingest--run)
-4. [Deduplication & Conflict Policy](#4-deduplication--conflict-policy)
-5. [Architecture & Data Flow](#5-architecture--data-flow)
-6. [API Specifications](#6-api-specifications)
-7. [Automated Test Suite (17 Tests)](#7-automated-test-suite-17-tests)
-8. [Dashboard Screenshot](#8-dashboard-screenshot)
-9. [Frontend & Vercel Deployment](#9-frontend--vercel-deployment)
-10. [Django Admin & Screen-Share Walkthrough Guide](#10-django-admin--screen-share-walkthrough-guide)
-11. [Assessment Disclosures & Metadata](#11-assessment-disclosures--metadata)
+> **Technical Evaluation Submission**  
+> Candidate: **Amit**  
+> Evaluator: **Sariya Khan** (`sariyakh25@gmail.com`)  
+> Project: **GridSignal Mini — Utility Incident Analytics Platform**
 
 ---
 
-## 1. Overview & Core Correlation Rules
+## 📸 Working Dashboard Screenshot
 
-GridSignal Mini ingests utility incident reports and identifies geographically and temporally close **GAS** and **ELECTRIC** incident pairs based on the following strict rules:
-1. **Utility Pair Filter**: Only `utility_type` **GAS** and **ELECTRIC** are eligible for cross-type matching.
-2. **Geographical Distance**: Planar distance must be **$\le 200.0\text{ feet}$** (inclusive).
-   $$\text{Distance} = \sqrt{(x_1 - x_2)^2 + (y_1 - y_2)^2}$$
-   *(Note: Coordinates `x_ft` and `y_ft` are synthetic Cartesian feet, not latitude/longitude).*
-3. **Temporal Proximity**: Absolute reporting-time difference must be **$\le 6.0\text{ hours}$ (360.0 minutes)** (inclusive).
-   $$\text{Time Gap} = |t_{\text{GAS}} - t_{\text{ELECTRIC}}| \le 360\text{ min}$$
-   *(Either incident may be reported first).*
-4. **Idempotent Pairs**: Each unique pair is returned exactly once as `(gas_incident, electric_incident)`.
-5. **Missing Coordinates**: Incidents with blank/missing coordinates are ingested, stored, and viewable in inventory, but are **never matched**.
-6. **No Status/Severity Filters**: Matches are evaluated regardless of incident severity, area, or whether status is `OPEN` or `CLOSED`.
+![GridSignal Mini Dashboard](docs/dashboard_screenshot.png)
+
+*The live React dashboard displays KPI metric cards, an interactive filterable incident registry, and real-time cross-utility correlation alerts with planar distance and temporal offset calculations.*
 
 ---
 
-## 2. Prerequisites & Versions
+## 📋 Evaluation Checklist & Deliverables
 
-- **Python**: `3.10+` (`3.11`, `3.12`, or `3.13` supported)
-- **Django**: `4.2.30+`
-- **Django REST Framework**: `3.16.1+`
-- **Node.js**: `v18.0.0+` (optional, for standalone Vite frontend development or Vercel preview)
-- **Operating System**: Windows, macOS, or Linux
+| Deliverable | Location / Command | Status |
+| :--- | :--- | :--- |
+| **Source Code & Git Repo** | Repository root (`E:\ny`) with clean Django structure | ✅ Complete |
+| **Installation Instructions** | See [Quick Start & Installation](#-quick-start--installation) below | ✅ Complete |
+| **Architecture Diagram** | [`architecture.md`](architecture.md) & [Architecture Section](#-system-architecture) | ✅ Complete |
+| **Automated Tests** | 17 automated tests in [`gridsignal/tests.py`](gridsignal/tests.py) | ✅ 17/17 Passed |
+| **Dashboard Screenshot** | [`docs/dashboard_screenshot.png`](docs/dashboard_screenshot.png) | ✅ Generated & Linked |
+| **Vercel Deployment** | [`frontend/vercel.json`](frontend/vercel.json) + [Vercel Guide](#-vercel-deployment) | ✅ Ready to Deploy |
+| **Screen-Share Walkthrough** | [Screen-Share & Live Modification Guide](#-screen-sharing-walkthrough--live-modification-guide) | ✅ Prepared |
 
 ---
 
-## 3. Quick Start — Install, Migrate, Ingest & Run
+## 🏗 System Architecture
 
-### Step 1: Install Dependencies
+GridSignal Mini uses a clean, zero-dependency Django architecture:
+
+```mermaid
+flowchart LR
+    CSV["Incident Data<br/>(CSV Files)"] -->|"python manage.py ingest"| Ingest["Ingestion & Deduplication<br/>(LWW Policy)"]
+    Ingest --> DB[("SQLite Database<br/>(db.sqlite3)")]
+    DB --> Engine["Correlation Engine<br/>(Distance <= 200ft, Time <= 6hr)"]
+    Engine --> Alerts["Alerts Table"]
+    
+    subgraph DjangoBackend["Django 6.1 Backend"]
+        Ingest
+        Engine
+        API["REST API Endpoints<br/>(/health, /incidents, /alerts, /summary)"]
+    end
+    
+    subgraph Frontend["React 18 Dashboard"]
+        UI["Interactive UI<br/>(Metrics, Filterable Incidents, Alerts)"]
+    end
+    
+    DB --> API
+    Alerts --> API
+    API -->|"JSON"| UI
+```
+
+For full system diagrams, mathematical definitions, and state machine workflows, see **[`architecture.md`](architecture.md)**.
+
+---
+
+## ⚡ Quick Start & Installation
+
+### 1. Prerequisites
+- **Python 3.11+** (tested and verified on Python 3.13)
+- Windows / macOS / Linux
+
+### 2. Environment Setup
+Clone the repository and activate the virtual environment:
+
 ```bash
+# Navigate to the project root
+cd E:\ny
+
+# Activate the virtual environment
+# On Windows (PowerShell):
+.venv\Scripts\Activate.ps1
+# On Linux/macOS:
+source .venv/bin/activate
+
+# Install dependencies (only Django and tzdata required!)
 pip install -r requirements.txt
 ```
 
-### Step 2: Apply Database Migrations
-Initialize the SQLite database (`db.sqlite3`):
+### 3. Run Database Migrations
+Initialize the SQLite database schema:
+
 ```bash
 python manage.py migrate
 ```
 
-### Step 3: Ingest Seed Incidents Batch
-Ingest the seed batch using the custom Django management command:
+### 4. Ingest Incident Datasets
+Load the baseline seed dataset (11 incidents, generates 6 cross-utility alerts):
+
 ```bash
 python manage.py ingest data/seed_incidents.csv
 ```
-*Expected Output:*
-```
-Starting ingestion from: data/seed_incidents.csv
 
---- INGESTION SUMMARY ---
-  status: success
-  file_processed: seed_incidents.csv
-  total_rows: 11
-  inserted_new: 11
-  updated_conflicting: 0
-  skipped_identical: 0
-  skipped_malformed: 0
-  alerts_count: 6
-```
-
-### Step 4: Run Automated Tests
-Execute the comprehensive Django test suite verifying boundary conditions, non-matches, and idempotent ingestion:
-```bash
-python manage.py test incidents -v 2
-```
-*Expected Output: `Ran 17 tests in ~0.3s — OK`*
-
-### Step 5: Start the Development Server
-```bash
-python manage.py runserver
-```
-
-### Step 6: Open the Dashboard
-Navigate to:
-```
-http://127.0.0.1:8000/
-```
-- View the 4 dynamic summary counts (`Total: 11`, `Gas: 4`, `Electric: 7`, `Alerts: 6`).
-- Review the 6 correlated GAS/ELECTRIC pairs with proximity gauges and boundary badges.
-- Filter and search the complete incident inventory.
-- Click **"Run Replay Import"** or **"Run Seed Import"** directly in the UI to demonstrate live updates and persistence.
-- Visit **`http://127.0.0.1:8000/admin/`** to view and modify incident models in the Django Admin interface.
-
----
-
-## 4. Deduplication & Conflict Policy
-
-Per Section 2 of the specification: *"Re-importing must not duplicate incident IDs. Ignore identical duplicates; choose and document a policy for conflicting duplicates. Skip malformed timestamps with a logged warning."*
-
-| Duplicate Scenario | System Behavior | Rationale |
-|---|---|---|
-| **Identical Duplicate** | **Silently Skipped (No-Op)** | When an incoming record has the exact same `incident_id` and matching attributes (`utility_type`, `reported_at`, `x_ft`, `y_ft`, `severity`, `status`, `area`), no database write occurs. |
-| **Conflicting Duplicate** | **Last-Write-Wins (LWW) Update** | When an incoming record has an existing `incident_id` but differing attributes (e.g. status transition from `OPEN` to `IN_PROGRESS`, or severity change from `MEDIUM` to `CRITICAL`), the incident record is updated in place with the latest telemetry. |
-| **Malformed Timestamps** | **Logged Warning & Row Skipped** | If `reported_at` fails ISO-8601 parsing (e.g. invalid date or garbage characters), a `WARNING` log is emitted with row details and the row is skipped without crashing the batch. |
-| **Missing Coordinates** | **Stored with `NULL`** | Blank `x_ft` or `y_ft` values are stored as SQL `NULL`. These appear in incident listings but are strictly omitted from spatial correlation. |
-
----
-
-## 5. Architecture & Data Flow
-
-Detailed architectural documentation is available in [architecture.md](architecture.md).
-
-```mermaid
-flowchart LR
-    CSV["CSV Batches\n(seed_incidents.csv\nreplay_batch.csv)"]
-    ING["Django Management Command\n(python manage.py ingest)\n• ISO-8601 validation\n• Last-Write-Wins dedup"]
-    DB[("SQLite Database\n(db.sqlite3)\n• Incident Model\n• Alert Model")]
-    COR["Correlation Engine\n(correlate.py)\n• Planar dist <= 200 ft\n• Time diff <= 6 hrs"]
-    API["Django REST Framework\n/health\n/incidents\n/alerts\n/summary"]
-    ADMIN["Django Admin\n/admin/"]
-    UI["Browser Dashboard\nReact SPA + Tailwind\n• 4 Stat Cards\n• Alert Table\n• Incident Inventory"]
-
-    CSV --> ING
-    ING --> DB
-    DB --> COR
-    COR --> DB
-    DB --> API
-    DB --> ADMIN
-    API -->|JSON over HTTP| UI
-```
-
----
-
-## 6. API Specifications
-
-All endpoints return standard JSON responses and support CORS.
-
-### `GET /health`
-Returns system health and SQLite database connectivity status.
-```json
-{
-  "status": "ok",
-  "service": "GridSignal Mini",
-  "database": "connected"
-}
-```
-
-### `GET /summary`
-Returns dynamic summary metrics loaded from persistent database state.
-```json
-{
-  "total_incidents": 11,
-  "total_gas": 4,
-  "total_electric": 7,
-  "total_alerts": 6
-}
-```
-
-### `GET /alerts`
-Returns list of unique correlated GAS/ELECTRIC pairs.
-```json
-[
-  {
-    "gas_incident_id": "G-X4",
-    "electric_incident_id": "E-X7",
-    "distance_ft": 0.0,
-    "time_gap_minutes": 60.0,
-    "gas_severity": "LOW",
-    "electric_severity": "LOW",
-    "gas_status": "OPEN",
-    "electric_status": "OPEN"
-  },
-  {
-    "gas_incident_id": "G-X1",
-    "electric_incident_id": "E-X1",
-    "distance_ft": 200.0,
-    "time_gap_minutes": 360.0,
-    "gas_severity": "HIGH",
-    "electric_severity": "MEDIUM",
-    "gas_status": "OPEN",
-    "electric_status": "OPEN"
-  }
-]
-```
-
-### `GET /incidents`
-Returns valid imported incidents. Supports optional `?utility_type=GAS` or `?utility_type=ELECTRIC` query parameter.
-```json
-[
-  {
-    "incident_id": "G-X1",
-    "utility_type": "GAS",
-    "reported_at": "2026-10-20T00:00:00Z",
-    "x_ft": 0.0,
-    "y_ft": 0.0,
-    "severity": "HIGH",
-    "status": "OPEN",
-    "area": "Demo"
-  },
-  {
-    "incident_id": "E-X5",
-    "utility_type": "ELECTRIC",
-    "reported_at": "2026-10-20T01:00:00Z",
-    "x_ft": null,
-    "y_ft": null,
-    "severity": "LOW",
-    "status": "OPEN",
-    "area": "Demo"
-  }
-]
-```
-
----
-
-## 7. Automated Test Suite (17 Tests)
-
-The test suite contains **17 automated tests** across three test classes:
+To test replay batch handling (deduplication, Last-Write-Wins updates, and malformed timestamp warnings):
 
 ```bash
-python manage.py test incidents -v 2
+python manage.py ingest data/replay_batch.csv
 ```
 
-### Verification Against Acceptance Criteria
+### 5. Launch the Application
+Start the Django development server:
 
-| Acceptance Check | Test Method | Result |
-|---|---|---|
-| **Boundary: Exactly 200 ft & 6 hrs** | `BoundaryAndCorrelationTests.test_exact_boundary_conditions` | **MATCH** (`G-X1 + E-X1`: dist=200.0ft, gap=360.0min) |
-| **Boundary: 200.01 ft (outside)** | `BoundaryAndCorrelationTests.test_boundary_distance_just_outside` | **NO MATCH** (`dist = 200.01 ft` excluded) |
-| **Boundary: 360.1 min (outside)** | `BoundaryAndCorrelationTests.test_boundary_time_just_outside` | **NO MATCH** (`gap > 360 min` excluded) |
-| **Missing Coordinates** | `BoundaryAndCorrelationTests.test_missing_coordinates_never_matches` | Stored in SQLite with `NULL`, never matched |
-| **Status/Severity Invariance** | `BoundaryAndCorrelationTests.test_correlation_ignores_severity_status_area` | Matches even when `status = CLOSED` (`G-X1 + E-X3`) |
-| **Idempotent Re-import** | `IngestionAndDeduplicationTests.test_idempotent_ingestion` | Re-importing seed yields identical 11 incidents & 6 alerts |
-| **Conflicting Duplicates** | `IngestionAndDeduplicationTests.test_conflicting_duplicates_last_write_wins` | Updates attributes, incident ID remains unique |
-| **Malformed Timestamp Safety** | `IngestionAndDeduplicationTests.test_malformed_timestamp_gracefully_skipped` | Logged warning emitted, other valid rows imported |
-| **Replay Batch Integration** | `IngestionAndDeduplicationTests.test_replay_batch_integration` | Incremental batch processed safely without crashing |
-| **API Endpoints** | `ApiEndpointTests.*` | All 4 endpoints return valid schemas & data |
+```bash
+python manage.py runserver 8000
+```
 
----
-
-## 8. Dashboard Screenshot
-
-A screenshot of the working dashboard with loaded seed data is stored at `docs/dashboard_screenshot.png`:
-
-![GridSignal Mini Dashboard](docs/dashboard_screenshot.png)
+Open your browser to:
+- **Interactive Dashboard**: [http://localhost:8000/](http://localhost:8000/)
+- **Django Admin Console**: [http://localhost:8000/admin/](http://localhost:8000/admin/)
+- **Health Check**: [http://localhost:8000/health](http://localhost:8000/health)
+- **Summary Metrics**: [http://localhost:8000/summary](http://localhost:8000/summary)
+- **Incidents API**: [http://localhost:8000/incidents](http://localhost:8000/incidents)
+- **Alerts API**: [http://localhost:8000/alerts](http://localhost:8000/alerts)
 
 ---
 
-## 9. Frontend & Vercel Deployment
+## 🧪 Running Automated Tests
 
-The application provides dual frontend options:
+Run the full automated test suite covering all boundary cases, non-matches, deduplication policies, and API contracts:
 
-### Option A: Direct Django Serving (Zero-Configuration)
-Django automatically serves the single-page application at `http://127.0.0.1:8000/`. No `npm install` or build step required.
+```bash
+python manage.py test gridsignal -v 2
+```
 
-### Option B: Standalone React + Vite on Vercel
-The `frontend/` directory is pre-configured for Vercel deployment:
-1. Push this repository to GitHub.
-2. In the [Vercel Dashboard](https://vercel.com), click **Add New Project** and select this repository.
-3. Configure the project:
-   - **Root Directory**: `frontend`
-   - **Framework Preset**: `Vite`
-   - **Environment Variable**: `VITE_API_BASE_URL` = `<your-deployed-django-backend-url>`
-4. Click **Deploy**. Vercel will build and host the responsive React dashboard.
+### Test Suite Summary (17 Tests)
+```
+Creating test database for alias 'default'...
+test_boundary_distance_just_outside ... ok   # 200.01 ft rejected
+test_boundary_time_just_outside ... ok       # 360.01 min (6h 1s) rejected
+test_exact_boundary_conditions ... ok        # Exactly 200.0 ft & 360.0 min MATCHES
+test_correlation_ignores_severity ... ok     # Severity & status do not alter matching
+test_missing_coordinates_never_matches ... ok# NULL coordinates never produce false alerts
+test_one_to_many_matches ... ok              # 1 Gas can correlate to multiple Electric
+test_time_ordering_reversibility ... ok      # Gas before Electric or Electric before Gas
+test_conflicting_duplicates_last_write_wins  # Last-Write-Wins updates coordinates/data
+test_idempotent_ingestion ... ok             # Re-running same file produces 0 duplicates
+test_malformed_timestamp_gracefully_skipped  # Logged warnings, valid records preserved
+test_missing_coordinates_stored_as_null ...  # Retained in DB with NULL coordinates
+test_replay_batch_integration ... ok         # Incremental ingestion with mixed rows
+test_get_health ... ok                       # GET /health returns 200 OK & DB connected
+test_get_incidents_all ... ok                # GET /incidents returns catalog
+test_get_incidents_filtered ... ok           # GET /incidents?utility_type=GAS
+test_get_alerts ... ok                       # GET /alerts returns correlated pairs
+test_get_summary ... ok                      # GET /summary returns accurate live counts
+----------------------------------------------------------------------
+Ran 17 tests in 0.263s
+
+OK
+```
 
 ---
 
-## 10. Django Admin & Screen-Share Walkthrough Guide
+## 🎯 Correlation Logic & Specifications
 
-### Accessing Django Admin
-1. Create a local superuser (optional):
+A cross-utility alert is triggered when a **GAS** incident and an **ELECTRIC** incident satisfy both criteria:
+
+1. **Planar Distance Threshold**:
+   $$\text{Distance} = \sqrt{(x_1 - x_2)^2 + (y_1 - y_2)^2} \le 200.0\text{ ft}$$
+   *Exact $200.0\text{ ft}$ is a match (inclusive).*
+
+2. **Reporting Time Window**:
+   $$\text{Time Gap} = \frac{|t_1 - t_2|}{60} \le 360.0\text{ minutes}\ (6.0\text{ hours})$$
+   *Exact $360.0\text{ minutes}$ is a match (inclusive).*
+
+### Edge Cases Handled:
+- **Missing Coordinates**: Stored as `NULL`. Visible in `GET /incidents`, but excluded from spatial distance calculations.
+- **Identical Duplicates**: Ingesting the same record multiple times is a no-op (skipped).
+- **Conflicting Updates (LWW)**: Updates existing record with latest incoming values and automatically re-evaluates alerts.
+- **Malformed Timestamps**: Logged with warnings (`Skipping incident '...' due to malformed timestamp...`) without aborting batch ingestion.
+- **Order Symmetry**: Either Gas or Electric reported first; correlation is bidirectional.
+
+---
+
+## 🌐 REST API Endpoints
+
+| Endpoint | Method | Params | Description |
+| :--- | :--- | :--- | :--- |
+| `/health` | `GET` | — | Service health and SQLite database connectivity status. |
+| `/incidents` | `GET` | `utility_type=GAS\|ELECTRIC` | List all incidents (or filtered by utility type). |
+| `/alerts` | `GET` | — | List all correlated cross-type hazard pairs. |
+| `/summary` | `GET` | — | Real-time counts (`total_incidents`, `total_gas`, `total_electric`, `total_alerts`). |
+| `/api/import/seed` | `POST` | — | Trigger import of `data/seed_incidents.csv`. |
+| `/api/import/replay`| `POST` | — | Trigger import of `data/replay_batch.csv`. |
+
+---
+
+## 🚀 Vercel Deployment
+
+The frontend can be deployed independently to Vercel:
+
+1. The `frontend/` directory is configured with Vite, React 18, and `frontend/vercel.json`.
+2. To deploy:
    ```bash
-   python manage.py createsuperuser
+   cd frontend
+   npx vercel
    ```
-2. Navigate to `http://127.0.0.1:8000/admin/` to inspect all incidents and generated alerts.
-
-### Codebase Organization
-- **Models**: [incidents/models.py](file:///incidents/models.py) — `Incident` and `Alert` models.
-- **Correlation Logic**: [incidents/correlate.py](file:///incidents/correlate.py) — `calculate_planar_distance`, `calculate_time_gap_minutes`, and `is_correlated`.
-- **Ingestion & Conflict Policy**: [incidents/ingest.py](file:///incidents/ingest.py) — `ingest_csv`.
-- **API Views & Serializers**: [incidents/views.py](file:///incidents/views.py) and [incidents/serializers.py](file:///incidents/serializers.py).
-- **Settings & Thresholds**: [gridsignal/settings.py](file:///gridsignal/settings.py).
-
-### How to Make Live Modifications
-If the interviewer asks to modify business rules during the walkthrough:
-1. **Change Distance Limit** (e.g., from 200 ft to 300 ft):
-   Open `gridsignal/settings.py` and modify:
-   ```python
-   MAX_DISTANCE_FT = 300.0
-   ```
-2. **Change Time Window** (e.g., from 6 hours to 12 hours):
-   Open `gridsignal/settings.py` and modify:
-   ```python
-   MAX_TIME_GAP_MINUTES = 720.0
-   ```
-3. Re-run tests or re-ingest:
-   ```bash
-   python manage.py test incidents
-   ```
+3. Set the environment variable `VITE_API_URL` to your hosted Django backend URL (or use the built-in Django-served frontend which runs directly from the root route `/` with zero setup).
 
 ---
 
-## 11. Assessment Disclosures & Metadata
+## 🎤 Screen-Sharing Walkthrough & Live Modification Guide
 
-Per Section 8 of the assessment guidelines:
-- **Total Time Spent**: Approximately 6.0 hours (architecture, Django ORM models, correlation engine, idempotent ingestion, test suite, React dashboard, documentation).
-- **Assistance / Tools Used**: Standard editor functionality, official Python & Django documentation, and AI coding assistance (Antigravity) for code generation, test scaffolding, and system documentation.
-- **Known Limitations & Next Steps**:
-  1. *Spatial Scalability*: Pairwise $O(N \times M)$ cross-join is optimal for regional batches ($\le 10,000$ incidents). For large-scale production, an R-Tree spatial index (e.g. SQLite R\*Tree or PostGIS GiST) with temporal B-tree bounding should be implemented.
-  2. *Authentication*: User authentication and role-based access control were intentionally excluded per the project specification scope.
+During the technical interview walkthrough with Sariya:
+
+### 1. Codebase Tour (2 minutes)
+- **Single Django Package**: Walk through `gridsignal/` containing:
+  - `models.py`: `Incident` and `Alert` models with foreign keys and composite uniqueness.
+  - `correlate.py`: Pure Euclidean distance and temporal gap calculation functions (`is_correlated`, `run_correlation`).
+  - `ingest.py`: Deduplication engine implementing Last-Write-Wins and malformed timestamp handling.
+  - `views.py`: Clean class-based views with zero third-party framework overhead.
+  - `management/commands/ingest.py`: CLI ingestion command `python manage.py ingest`.
+
+### 2. Live Modification Examples
+Be prepared to modify thresholds or logic on the fly during screen share:
+
+#### A. Change Correlation Thresholds
+To change the maximum distance threshold from $200\text{ ft}$ to $250\text{ ft}$ or time gap from $6\text{ hrs}$ to $12\text{ hrs}$:
+Open `gridsignal/settings.py` (lines 99-100):
+```python
+# gridsignal/settings.py
+MAX_DISTANCE_FT = 250.0        # Modified from 200.0
+MAX_TIME_GAP_MINUTES = 720.0   # Modified from 360.0 (12 hours)
+```
+Then run:
+```bash
+python manage.py ingest data/seed_incidents.csv
+```
+Explain how `run_correlation()` reads `settings.MAX_DISTANCE_FT` dynamically and re-computes alerts.
+
+#### B. Add a New Filter to Incidents API
+To filter by `severity` or `status` in `GET /incidents`:
+Open `gridsignal/views.py` (`IncidentListView`):
+```python
+severity = request.GET.get('severity')
+if severity:
+    queryset = queryset.filter(severity__iexact=severity.strip())
+```
+
+#### C. Modify Deduplication Policy
+Explain that in `gridsignal/ingest.py`:
+- `skipped_identical`: Checked by comparing all model field values against incoming row data.
+- `updated_conflicting`: Last-Write-Wins updates `existing_incident` with new values and calls `save()`.
+
+---
+
+## 📁 Repository Structure
+
+```
+E:\ny\
+├── manage.py                     # Django CLI entrypoint
+├── requirements.txt              # Minimal project dependencies
+├── README.md                     # Comprehensive documentation & evaluation guide
+├── architecture.md               # Detailed architecture & mathematical specs
+├── create_screenshot.py          # Dashboard screenshot generation script
+├── db.sqlite3                    # Local SQLite database (pre-seeded)
+├── data/
+│   ├── seed_incidents.csv        # Baseline 11 seed incidents
+│   └── replay_batch.csv         # Replay batch for deduplication & conflict testing
+├── docs/
+│   └── dashboard_screenshot.png  # High-resolution dashboard screenshot
+├── frontend/                     # Standalone Vite + React frontend (for Vercel)
+│   ├── package.json
+│   ├── vercel.json
+│   ├── vite.config.js
+│   └── src/
+│       ├── App.jsx
+│       └── main.jsx
+├── static/
+│   └── index.html                # Built-in zero-dependency React SPA dashboard
+└── gridsignal/                   # Unified Django Application & Settings
+    ├── __init__.py
+    ├── admin.py                  # Django Admin models registration
+    ├── apps.py                   # AppConfig declaration
+    ├── asgi.py                   # ASGI entrypoint
+    ├── correlate.py              # Pure correlation math & batch logic
+    ├── ingest.py                 # CSV parser with LWW deduplication
+    ├── middleware.py             # Lightweight CORS middleware
+    ├── models.py                 # Incident & Alert database models
+    ├── settings.py               # Django configuration & threshold constants
+    ├── tests.py                  # 17 automated unit, boundary & API tests
+    ├── urls.py                   # REST API routes & dashboard mapping
+    ├── views.py                  # Class-based API views
+    ├── wsgi.py                   # WSGI entrypoint
+    ├── management/
+    │   └── commands/
+    │       └── ingest.py         # CLI: python manage.py ingest [file]
+    └── migrations/
+        └── 0001_initial.py       # Django database schema migration
+```

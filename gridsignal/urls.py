@@ -1,6 +1,14 @@
 from django.contrib import admin
-from django.urls import path, include
-from incidents.views import DashboardView, HealthView, IncidentListView, AlertListView, SummaryView, ImportSeedView, ImportReplayView
+from django.urls import path
+from .views import (
+    DashboardView,
+    HealthView,
+    IncidentListView,
+    AlertListView,
+    SummaryView,
+    ImportSeedView,
+    ImportReplayView
+)
 
 urlpatterns = [
     # Admin Interface

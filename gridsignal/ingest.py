@@ -2,8 +2,6 @@ import csv
 import logging
 from pathlib import Path
 from typing import Dict, Any
-from django.db import transaction
-from django.utils.dateparse import parse_datetime
 from .models import Incident
 from .correlate import parse_iso_datetime, run_correlation
 

@@ -1,8 +1,6 @@
-import sys
-from pathlib import Path
 from django.core.management.base import BaseCommand, CommandError
 from django.conf import settings
-from incidents.ingest import ingest_csv
+from gridsignal.ingest import ingest_csv
 
 class Command(BaseCommand):
     help = "Ingest an incident CSV batch into SQLite and update correlated alerts"

@@ -79,7 +79,7 @@ export default function App() {
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-bold tracking-tight">GridSignal Mini</h1>
                 <span className="px-2 py-0.5 rounded text-xs font-semibold bg-teal-900/80 text-teal-300 border border-teal-700">
-                  v1.0
+                  Django Edition
                 </span>
               </div>
               <p className="text-xs text-slate-400">Utility Incident Intelligence & Cross-Type Pair Correlation</p>
@@ -376,10 +376,9 @@ export default function App() {
       <footer className="bg-white border-t border-slate-200 text-slate-500 text-xs py-4 mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2">
           <div>GridSignal Mini · Internal Utility Incident Intelligence Platform</div>
-          <div className="font-mono text-slate-400">FastAPI + SQLite + React</div>
+          <div className="font-mono text-slate-400">Django + SQLite + React</div>
         </div>
       </footer>
     </div>
   );
 }
-

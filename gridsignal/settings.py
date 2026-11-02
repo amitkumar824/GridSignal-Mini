@@ -4,7 +4,7 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'gridsignal-mini-evaluation-key-2026-xyz')
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-gridsignal-mini-eval-2026')
 
 DEBUG = True
 
@@ -18,17 +18,13 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    
-    # Third-party apps
-    'rest_framework',
-    'corsheaders',
 
-    # Local apps
-    'incidents.apps.IncidentsConfig',
+    # Core GridSignal Application
+    'gridsignal.apps.GridSignalConfig',
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',  # High priority for CORS
+    'gridsignal.middleware.SimpleCorsMiddleware',  # Top-level CORS handling
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -44,13 +40,11 @@ TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [
-            BASE_DIR / 'templates',
-            BASE_DIR / 'backend' / 'static',
+            BASE_DIR / 'static',
         ],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
-                'django.template.context_processors.debug',
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
@@ -63,7 +57,7 @@ WSGI_APPLICATION = 'gridsignal.wsgi.application'
 ASGI_APPLICATION = 'gridsignal.asgi.application'
 
 # Database
-# https://docs.djangoproject.com/en/4.2/ref/settings/#databases
+# https://docs.djangoproject.com/en/6.1/ref/settings/#databases
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -71,17 +65,21 @@ DATABASES = {
     }
 }
 
-# REST Framework settings
-REST_FRAMEWORK = {
-    'DEFAULT_RENDERER_CLASSES': [
-        'rest_framework.renderers.JSONRenderer',
-        'rest_framework.renderers.BrowsableAPIRenderer',
-    ],
-}
-
-# CORS settings for frontend integration
-CORS_ALLOW_ALL_ORIGINS = True
-CORS_ALLOW_CREDENTIALS = True
+# Password validation
+AUTH_PASSWORD_VALIDATORS = [
+    {
+        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+    },
+]
 
 # Internationalization
 LANGUAGE_CODE = 'en-us'
@@ -92,11 +90,12 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [
-    BASE_DIR / 'backend' / 'static',
+    BASE_DIR / 'static',
 ]
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# GridSignal Correlation Rules & Constants
+# GridSignal Correlation Rules & Thresholds (both boundaries inclusive)
 MAX_DISTANCE_FT = 200.0
 MAX_TIME_GAP_MINUTES = 360.0  # 6 hours * 60 minutes
 SEED_CSV_PATH = BASE_DIR / 'data' / 'seed_incidents.csv'

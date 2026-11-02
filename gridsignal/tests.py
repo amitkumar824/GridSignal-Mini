@@ -1,14 +1,13 @@
+import json
 import tempfile
 from pathlib import Path
 from datetime import datetime, timezone
-from django.test import TestCase
+from django.test import TestCase, Client
 from django.conf import settings
-from rest_framework.test import APITestCase
-from rest_framework import status
 
-from incidents.models import Incident, Alert
-from incidents.correlate import is_correlated, run_correlation, calculate_planar_distance, calculate_time_gap_minutes
-from incidents.ingest import ingest_csv
+from gridsignal.models import Incident, Alert
+from gridsignal.correlate import is_correlated, run_correlation
+from gridsignal.ingest import ingest_csv
 
 class BoundaryAndCorrelationTests(TestCase):
     """
@@ -224,25 +223,28 @@ class IngestionAndDeduplicationTests(TestCase):
         self.assertEqual(Incident.objects.count(), 11 + stats["inserted_new"])
 
 
-class ApiEndpointTests(APITestCase):
+class ApiEndpointTests(TestCase):
     """
     Acceptance Check:
     API response expectations for GET /health, GET /incidents, GET /alerts, and GET /summary.
     """
     def setUp(self):
         ingest_csv(settings.SEED_CSV_PATH)
+        self.client = Client()
 
     def test_get_health(self):
         response = self.client.get('/health')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["status"], "ok")
-        self.assertEqual(response.data["service"], "GridSignal Mini")
-        self.assertEqual(response.data["database"], "connected")
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content)
+        self.assertEqual(data["status"], "ok")
+        self.assertEqual(data["service"], "GridSignal Mini")
+        self.assertEqual(data["database"], "connected")
 
     def test_get_summary(self):
         response = self.client.get('/summary')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data, {
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content)
+        self.assertEqual(data, {
             "total_incidents": 11,
             "total_gas": 4,
             "total_electric": 7,
@@ -251,34 +253,38 @@ class ApiEndpointTests(APITestCase):
 
     def test_get_incidents_all(self):
         response = self.client.get('/incidents')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 11)
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content)
+        self.assertEqual(len(data), 11)
 
         # Verify missing coordinates item (E-X5) is included with nulls
-        e_x5 = next(i for i in response.data if i["incident_id"] == "E-X5")
+        e_x5 = next(i for i in data if i["incident_id"] == "E-X5")
         self.assertIsNone(e_x5["x_ft"])
         self.assertIsNone(e_x5["y_ft"])
 
     def test_get_incidents_filtered(self):
         # Filter GAS
         res_gas = self.client.get('/incidents?utility_type=GAS')
-        self.assertEqual(res_gas.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(res_gas.data), 4)
-        self.assertTrue(all(i["utility_type"] == "GAS" for i in res_gas.data))
+        self.assertEqual(res_gas.status_code, 200)
+        data_gas = json.loads(res_gas.content)
+        self.assertEqual(len(data_gas), 4)
+        self.assertTrue(all(i["utility_type"] == "GAS" for i in data_gas))
 
         # Filter ELECTRIC
         res_elec = self.client.get('/incidents?utility_type=ELECTRIC')
-        self.assertEqual(res_elec.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(res_elec.data), 7)
-        self.assertTrue(all(i["utility_type"] == "ELECTRIC" for i in res_elec.data))
+        self.assertEqual(res_elec.status_code, 200)
+        data_elec = json.loads(res_elec.content)
+        self.assertEqual(len(data_elec), 7)
+        self.assertTrue(all(i["utility_type"] == "ELECTRIC" for i in data_elec))
 
     def test_get_alerts(self):
         response = self.client.get('/alerts')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 6)
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content)
+        self.assertEqual(len(data), 6)
 
         # Validate required fields
-        for a in response.data:
+        for a in data:
             self.assertIn("gas_incident_id", a)
             self.assertIn("electric_incident_id", a)
             self.assertIn("distance_ft", a)
@@ -288,7 +294,7 @@ class ApiEndpointTests(APITestCase):
 
         # Check boundary match G-X1 + E-X1
         boundary_pair = next(
-            (a for a in response.data if a["gas_incident_id"] == "G-X1" and a["electric_incident_id"] == "E-X1"),
+            (a for a in data if a["gas_incident_id"] == "G-X1" and a["electric_incident_id"] == "E-X1"),
             None
         )
         self.assertIsNotNone(boundary_pair)

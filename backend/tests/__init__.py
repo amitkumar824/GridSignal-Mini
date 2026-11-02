@@ -1,2 +1,0 @@
-# GridSignal Mini Test Suite
-
