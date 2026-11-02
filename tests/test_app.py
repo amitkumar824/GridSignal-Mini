@@ -13,11 +13,13 @@ from app.correlate import (
     run_correlation,
 )
 from app.ingest import ingest_csv
+from app.schemas import IncidentCreate
 from app.main import (
     get_health,
     get_incidents,
     get_alerts,
     get_summary,
+    create_incident,
 )
 
 # ---------------------------------------------------------
@@ -303,3 +305,43 @@ E1,ELECTRIC,2026-10-20T01:00:00Z,50,0,MEDIUM,OPEN,Demo
             assert summary.total_alerts == 1
         finally:
             Path(p).unlink(missing_ok=True)
+
+    def test_create_incident_json(self, temp_db):
+        """Verify REST API POST /incidents accepts JSON payload and runs correlation."""
+        conn, _ = temp_db
+        # Create GAS incident via JSON
+        gas_payload = IncidentCreate(
+            incident_id="REST-G1",
+            utility_type="GAS",
+            reported_at="2026-10-20T10:00:00Z",
+            x_ft=100.0,
+            y_ft=100.0,
+            severity="HIGH",
+            status="OPEN",
+            area="North Grid",
+        )
+        saved_gas = create_incident(incident=gas_payload, conn=conn)
+        assert saved_gas.incident_id == "REST-G1"
+        assert saved_gas.utility_type == "GAS"
+
+        # Create correlated ELECTRIC incident via JSON (within 200ft, within 6h)
+        elec_payload = IncidentCreate(
+            incident_id="REST-E1",
+            utility_type="ELECTRIC",
+            reported_at="2026-10-20T11:00:00Z",
+            x_ft=150.0,
+            y_ft=100.0,
+            severity="MEDIUM",
+            status="OPEN",
+            area="North Grid",
+        )
+        saved_elec = create_incident(incident=elec_payload, conn=conn)
+        assert saved_elec.incident_id == "REST-E1"
+
+        # Alerts should immediately show the correlated match
+        alerts = get_alerts(conn=conn)
+        assert len(alerts) == 1
+        assert alerts[0].gas_incident_id == "REST-G1"
+        assert alerts[0].electric_incident_id == "REST-E1"
+        assert alerts[0].distance_ft == 50.0
+        assert alerts[0].time_gap_minutes == 60.0

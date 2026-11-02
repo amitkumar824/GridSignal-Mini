@@ -35,6 +35,74 @@ def parse_coordinate(val: Any) -> Optional[float]:
     except ValueError:
         return None
 
+def upsert_single_incident(
+    data: Dict[str, Any],
+    conn: sqlite3.Connection,
+    now_iso: Optional[str] = None
+) -> str:
+    """
+    Process a single incident dictionary with validation and LWW policy:
+    - Returns: 'skipped_malformed', 'skipped_identical', 'updated_conflicting', or 'inserted_new'
+    """
+    if now_iso is None:
+        now_iso = datetime.now(timezone.utc).isoformat()
+
+    incident_id = str(data.get("incident_id") or "").strip()
+    utility_type = str(data.get("utility_type") or "").strip().upper()
+    raw_reported = str(data.get("reported_at") or "").strip()
+
+    if not incident_id or not utility_type:
+        return "skipped_malformed"
+
+    dt = parse_iso_timestamp(raw_reported)
+    if dt is None:
+        logger.warning(f"Skipping incident '{incident_id}' due to malformed timestamp '{raw_reported}'")
+        return "skipped_malformed"
+
+    reported_at_iso = dt.isoformat()
+    x_ft = parse_coordinate(data.get("x_ft"))
+    y_ft = parse_coordinate(data.get("y_ft"))
+    severity = str(data.get("severity") or "MEDIUM").strip().upper()
+    status = str(data.get("status") or "OPEN").strip().upper()
+    area = str(data.get("area") or "").strip() or None
+
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT utility_type, reported_at, x_ft, y_ft, severity, status, area
+        FROM incidents WHERE incident_id = ?
+    """, (incident_id,))
+    existing = cursor.fetchone()
+
+    if existing is not None:
+        same_utility = existing["utility_type"] == utility_type
+        same_reported = existing["reported_at"] == reported_at_iso
+        same_x = (existing["x_ft"] is None and x_ft is None) or (
+            existing["x_ft"] is not None and x_ft is not None and abs(existing["x_ft"] - x_ft) < 1e-6
+        )
+        same_y = (existing["y_ft"] is None and y_ft is None) or (
+            existing["y_ft"] is not None and y_ft is not None and abs(existing["y_ft"] - y_ft) < 1e-6
+        )
+        same_sev = (existing["severity"] or "").upper() == severity
+        same_stat = (existing["status"] or "").upper() == status
+        same_area = (existing["area"] or "") == (area or "")
+
+        if same_utility and same_reported and same_x and same_y and same_sev and same_stat and same_area:
+            return "skipped_identical"
+        else:
+            cursor.execute("""
+                UPDATE incidents
+                SET utility_type = ?, reported_at = ?, x_ft = ?, y_ft = ?,
+                    severity = ?, status = ?, area = ?, updated_at = ?
+                WHERE incident_id = ?
+            """, (utility_type, reported_at_iso, x_ft, y_ft, severity, status, area, now_iso, incident_id))
+            return "updated_conflicting"
+    else:
+        cursor.execute("""
+            INSERT INTO incidents (incident_id, utility_type, reported_at, x_ft, y_ft, severity, status, area, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (incident_id, utility_type, reported_at_iso, x_ft, y_ft, severity, status, area, now_iso, now_iso))
+        return "inserted_new"
+
 def ingest_csv(csv_path: Path | str, conn: Optional[sqlite3.Connection] = None) -> Dict[str, Any]:
     """
     Ingest an incident CSV file into SQLite:
@@ -63,73 +131,22 @@ def ingest_csv(csv_path: Path | str, conn: Optional[sqlite3.Connection] = None) 
         "alerts_count": 0,
     }
 
-    cursor = conn.cursor()
     now_iso = datetime.now(timezone.utc).isoformat()
 
     try:
         with open(path, mode="r", encoding="utf-8-sig") as f:
             reader = csv.DictReader(f)
-            row_idx = 1
             for row in reader:
-                row_idx += 1
                 stats["total_rows"] += 1
-
-                incident_id = row.get("incident_id", "").strip()
-                utility_type = row.get("utility_type", "").strip().upper()
-                raw_reported = row.get("reported_at", "").strip()
-
-                if not incident_id or not utility_type:
-                    continue
-
-                dt = parse_iso_timestamp(raw_reported)
-                if dt is None:
-                    print(f"Row {row_idx}: Skipping incident '{incident_id}' due to malformed timestamp '{raw_reported}'")
-                    stats["skipped_malformed"] += 1
-                    continue
-
-                reported_at_iso = dt.isoformat()
-                x_ft = parse_coordinate(row.get("x_ft"))
-                y_ft = parse_coordinate(row.get("y_ft"))
-                severity = (row.get("severity") or "MEDIUM").strip().upper()
-                status = (row.get("status") or "OPEN").strip().upper()
-                area = (row.get("area") or "").strip() or None
-
-                # Check if incident already exists
-                cursor.execute("""
-                    SELECT utility_type, reported_at, x_ft, y_ft, severity, status, area
-                    FROM incidents WHERE incident_id = ?
-                """, (incident_id,))
-                existing = cursor.fetchone()
-
-                if existing is not None:
-                    # Compare fields to check if identical
-                    same_utility = existing["utility_type"] == utility_type
-                    same_reported = existing["reported_at"] == reported_at_iso
-                    same_x = (existing["x_ft"] is None and x_ft is None) or (existing["x_ft"] is not None and x_ft is not None and abs(existing["x_ft"] - x_ft) < 1e-6)
-                    same_y = (existing["y_ft"] is None and y_ft is None) or (existing["y_ft"] is not None and y_ft is not None and abs(existing["y_ft"] - y_ft) < 1e-6)
-                    same_sev = (existing["severity"] or "").upper() == severity
-                    same_stat = (existing["status"] or "").upper() == status
-                    same_area = (existing["area"] or "") == (area or "")
-
-                    if same_utility and same_reported and same_x and same_y and same_sev and same_stat and same_area:
-                        stats["skipped_identical"] += 1
-                        continue
-                    else:
-                        # Conflicting duplicate -> Last-Write-Wins (LWW)
-                        cursor.execute("""
-                            UPDATE incidents
-                            SET utility_type = ?, reported_at = ?, x_ft = ?, y_ft = ?,
-                                severity = ?, status = ?, area = ?, updated_at = ?
-                            WHERE incident_id = ?
-                        """, (utility_type, reported_at_iso, x_ft, y_ft, severity, status, area, now_iso, incident_id))
-                        stats["updated_conflicting"] += 1
-                else:
-                    # Insert new incident
-                    cursor.execute("""
-                        INSERT INTO incidents (incident_id, utility_type, reported_at, x_ft, y_ft, severity, status, area, created_at, updated_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """, (incident_id, utility_type, reported_at_iso, x_ft, y_ft, severity, status, area, now_iso, now_iso))
+                result = upsert_single_incident(row, conn, now_iso=now_iso)
+                if result == "inserted_new":
                     stats["inserted_new"] += 1
+                elif result == "updated_conflicting":
+                    stats["updated_conflicting"] += 1
+                elif result == "skipped_identical":
+                    stats["skipped_identical"] += 1
+                elif result == "skipped_malformed":
+                    stats["skipped_malformed"] += 1
 
         conn.commit()
         # Trigger re-correlation across all incidents
@@ -140,4 +157,5 @@ def ingest_csv(csv_path: Path | str, conn: Optional[sqlite3.Connection] = None) 
             conn.close()
 
     return stats
+
 

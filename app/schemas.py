@@ -6,6 +6,16 @@ class HealthResponse(BaseModel):
     service: str
     database: str
 
+class IncidentCreate(BaseModel):
+    incident_id: str
+    utility_type: str
+    reported_at: str
+    x_ft: Optional[float] = None
+    y_ft: Optional[float] = None
+    severity: Optional[str] = "MEDIUM"
+    status: Optional[str] = "OPEN"
+    area: Optional[str] = None
+
 class IncidentResponse(BaseModel):
     incident_id: str
     utility_type: str

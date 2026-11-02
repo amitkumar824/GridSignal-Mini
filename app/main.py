@@ -9,12 +9,14 @@ from .config import DB_PATH, SEED_CSV_PATH, REPLAY_CSV_PATH, STATIC_DIR
 from .database import get_connection, init_db
 from .schemas import (
     HealthResponse,
+    IncidentCreate,
     IncidentResponse,
     AlertResponse,
     SummaryResponse,
     IngestResponse,
 )
-from .ingest import ingest_csv
+from .ingest import ingest_csv, upsert_single_incident
+from .correlate import run_correlation
 
 # Initialize SQLite database schema and seed on startup
 init_db()
@@ -99,6 +101,30 @@ def get_incidents(
 
     rows = cursor.fetchall()
     return [IncidentResponse(**dict(r)) for r in rows]
+
+@app.post("/incidents", response_model=IncidentResponse, status_code=201, tags=["Incidents"])
+def create_incident(incident: IncidentCreate, conn=Depends(get_db)):
+    """
+    Ingest a single incident via REST API JSON payload (e.g. from IoT sensors, SCADA webhooks, or mobile crews).
+    Applies the Last-Write-Wins (LWW) deduplication policy and re-runs the cross-utility correlation engine.
+    """
+    res = upsert_single_incident(incident.model_dump(), conn)
+    if res == "skipped_malformed":
+        raise HTTPException(status_code=400, detail="Invalid incident data or malformed ISO-8601 timestamp")
+
+    conn.commit()
+    # Re-run correlation engine so alerts are instantly updated
+    run_correlation(conn)
+
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT incident_id, utility_type, reported_at, x_ft, y_ft, severity, status, area
+        FROM incidents WHERE incident_id = ?
+    """, (incident.incident_id,))
+    row = cursor.fetchone()
+    if not row:
+        raise HTTPException(status_code=500, detail="Failed to retrieve saved incident")
+    return IncidentResponse(**dict(row))
 
 @app.get("/alerts", response_model=List[AlertResponse], tags=["Alerts"])
 def get_alerts(conn=Depends(get_db)):
