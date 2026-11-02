@@ -128,7 +128,7 @@ def create_dashboard_screenshot():
     draw.text((40, height - 32), "GridSignal Mini · Internal Utility Incident Intelligence Platform · Django + SQLite + React", fill="#94a3b8", font=font_subtitle)
     draw.text((width - 240, height - 32), "Persistent Storage: db.sqlite3", fill="#94a3b8", font=font_mono)
 
-    out_dir = Path(__file__).resolve().parent / "docs"
+    out_dir = Path("E:/ny/GridSignal/docs")
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / "dashboard_screenshot.png"
     img.save(out_path, format="PNG")
