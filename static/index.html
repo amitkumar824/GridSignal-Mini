@@ -190,27 +190,6 @@
           {/* Main Dashboard Body */}
           <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full flex-1">
             
-            {/* Deduplication & Correlation Rules Banner */}
-            <div class="bg-gradient-to-r from-slate-900 to-slate-800 text-slate-300 rounded-xl p-4 shadow-sm border border-slate-700/60 mb-6 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-              <div class="text-xs space-y-1">
-                <div class="font-semibold text-slate-100 flex items-center gap-2">
-                  <i class="fa-solid fa-shield-halved text-teal-400"></i>
-                  Correlation Engine Rules & Conflict Policy
-                </div>
-                <div class="text-slate-400">
-                  <span class="text-teal-300 font-medium">Correlation:</span> Match GAS ↔ ELECTRIC if Planar Distance ≤ 200 ft <strong>AND</strong> Reporting Time Diff ≤ 6 hours (both inclusive).
-                </div>
-                <div class="text-slate-400">
-                  <span class="text-amber-300 font-medium">Conflict Policy:</span> Identical duplicates skipped. Conflicting duplicates update record (Last-Write-Wins). Malformed timestamps skipped with logged warning.
-                </div>
-              </div>
-              <div class="flex items-center gap-2 self-end md:self-auto shrink-0">
-                <span class="px-2.5 py-1 bg-slate-800 text-slate-200 rounded text-xs border border-slate-700 font-mono">
-                  Dist: sqrt((x1-x2)² + (y1-y2)²)
-                </span>
-              </div>
-            </div>
-
             {/* 4 Summary Stat Cards */}
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               {/* Total Incidents */}
@@ -320,8 +299,8 @@
               <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                 <div class="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
                   <div>
-                    <h2 class="text-sm font-bold text-slate-800">GAS / ELECTRIC Matched Pairs</h2>
-                    <p class="text-xs text-slate-500">Each unique pair satisfies synthetic planar distance ≤ 200 ft and absolute time difference ≤ 360 min.</p>
+                    <h2 class="text-sm font-bold text-slate-800">Cross-Utility Hazard Alerts</h2>
+                    <p class="text-xs text-slate-500">Active correlated alerts between gas and electric infrastructure events.</p>
                   </div>
                   <span class="text-xs text-slate-500 font-mono">Sorted by proximity</span>
                 </div>
@@ -342,7 +321,7 @@
                           <th class="py-3 px-4">Electric Incident</th>
                           <th class="py-3 px-4">Planar Distance</th>
                           <th class="py-3 px-4">Time Gap</th>
-                          <th class="py-3 px-4">Boundary Classification</th>
+                          <th class="py-3 px-4">Status</th>
                         </tr>
                       </thead>
                       <tbody class="divide-y divide-slate-100">

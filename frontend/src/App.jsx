@@ -131,24 +131,6 @@ export default function App() {
       {/* Main Container */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full flex-1">
         
-        {/* Rules & Conflict Policy Callout */}
-        <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-slate-300 rounded-xl p-4 shadow-sm border border-slate-700/60 mb-6 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-          <div className="text-xs space-y-1">
-            <div className="font-semibold text-slate-100 flex items-center gap-2">
-              🛡️ Correlation Engine Rules & Conflict Policy
-            </div>
-            <div className="text-slate-400">
-              <span className="text-teal-300 font-medium">Correlation:</span> Match GAS ↔ ELECTRIC if Planar Distance ≤ 200 ft <strong>AND</strong> Reporting Time Diff ≤ 6 hours (both inclusive).
-            </div>
-            <div className="text-slate-400">
-              <span className="text-amber-300 font-medium">Conflict Policy:</span> Identical duplicates skipped. Conflicting duplicates update record (Last-Write-Wins). Malformed timestamps skipped with logged warning.
-            </div>
-          </div>
-          <span className="px-2.5 py-1 bg-slate-800 text-slate-200 rounded text-xs border border-slate-700 font-mono">
-            Dist: sqrt((x1-x2)² + (y1-y2)²)
-          </span>
-        </div>
-
         {/* 4 Summary Stat Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
