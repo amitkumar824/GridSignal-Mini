@@ -49,3 +49,4 @@ def init_db(db_path: Optional[Path | str] = None) -> None:
             conn.executescript(SCHEMA_SQL)
     finally:
         conn.close()
+

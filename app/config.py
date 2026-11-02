@@ -10,3 +10,4 @@ STATIC_DIR = BASE_DIR / "static"
 # Correlation Thresholds (Both Boundaries Inclusive)
 MAX_DISTANCE_FT: float = 200.0
 MAX_TIME_GAP_MINUTES: float = 360.0  # 6.0 hours * 60 minutes
+

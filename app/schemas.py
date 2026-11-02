@@ -43,3 +43,4 @@ class IngestResponse(BaseModel):
     skipped_identical: int
     skipped_malformed: int
     alerts_count: int
+

@@ -140,3 +140,4 @@ def ingest_csv(csv_path: Path | str, conn: Optional[sqlite3.Connection] = None) 
             conn.close()
 
     return stats
+
