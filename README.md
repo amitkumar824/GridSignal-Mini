@@ -118,6 +118,8 @@ python manage.py runserver 8000
 Open your browser to:
 - **Interactive Dashboard**: [http://localhost:8000/](http://localhost:8000/)
 - **Django Admin Console**: [http://localhost:8000/admin/](http://localhost:8000/admin/)
+  - **Username**: `admin`
+  - **Password**: `admin123`
 - **Health Check**: [http://localhost:8000/health](http://localhost:8000/health)
 - **Summary Metrics**: [http://localhost:8000/summary](http://localhost:8000/summary)
 - **Incidents API**: [http://localhost:8000/incidents](http://localhost:8000/incidents)
