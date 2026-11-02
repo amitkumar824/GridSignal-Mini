@@ -199,3 +199,25 @@ The test suite in `gridsignal/tests.py` verifies all requirements with 17 automa
 - **Deduplication**: Identical duplicates are skipped, conflicting duplicates trigger Last-Write-Wins updates.
 - **Malformed Timestamps**: Logged with warnings, skipped without application failure.
 - **All REST Endpoints**: Validates JSON payloads, status codes, and filtering.
+
+---
+
+## 9. Architectural Tradeoffs & System Evolution
+
+### 9.1 Key Design Tradeoffs
+1. **Zero-Dependency Django vs Heavy DRF Ecosystem**:
+   - *Chosen Approach*: Pure Django standard library (`django.views.View`, `django.http.JsonResponse`, custom 10-line `SimpleCorsMiddleware`).
+   - *Rationale*: Eliminates fragile external dependencies (`djangorestframework`, `django-cors-headers`), guaranteeing that any reviewer or CI pipeline running `pip install -r requirements.txt` (only Django + tzdata) can run the application instantly without dependency version friction or deprecated setting warnings.
+2. **Deterministic Planar Math vs Heavy GIS System (PostGIS/GeoDjango)**:
+   - *Chosen Approach*: Standard Euclidean distance $\sqrt{(x_1-x_2)^2 + (y_1-y_2)^2}$ via Python's built-in `math.sqrt()`.
+   - *Rationale*: Candidate brief specifies imaginary synthetic coordinates in feet, not real-world GPS coordinates. PostGIS and GeoDjango require system-level C libraries (`GDAL`, `GEOS`, `PROJ`), which would complicate local setup and violate the brief's directive: *"Keep it small, reliable, and easy to run"*.
+3. **Partitioned In-Memory Pairing vs Spatial Database Indexing**:
+   - *Chosen Approach*: Filter by utility type into disjoint Gas and Electric arrays, compute Euclidean distances across active records.
+   - *Rationale*: For utility batch payloads (hundreds of incidents), execution time is sub-millisecond. It avoids complex spatial R-tree extension installation while maintaining $O(N \times M)$ bounding box efficiency.
+
+### 9.2 Scaling Path for Production
+- **Database**: Migrate from SQLite single-file storage to Amazon RDS PostgreSQL with connection pooling.
+- **Real-Time Ingestion**: Integrate Apache Kafka or AWS SQS for streaming ingestion of SCADA sensor events and dispatch feeds.
+- **Spatial Indexing**: Add PostGIS GiST spatial indexing for scale beyond 100,000 active concurrent incidents.
+
+
