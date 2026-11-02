@@ -55,47 +55,33 @@ export default function App() {
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-800">
       {/* Top Navigation Bar */}
       <header className="bg-slate-900 text-white shadow-md border-b border-slate-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-wrap items-center justify-between gap-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-lg bg-teal-500 flex items-center justify-center text-slate-950 font-black text-xl shadow-inner">
+            <div className="w-9 h-9 rounded-lg bg-teal-500 flex items-center justify-center text-slate-950 font-black text-lg shadow-inner">
               GS
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold tracking-tight">GridSignal Mini</h1>
-                <span className="px-2 py-0.5 rounded text-xs font-semibold bg-teal-900/80 text-teal-300 border border-teal-700">
-                  FastAPI Edition
-                </span>
-              </div>
-              <p className="text-xs text-slate-400">Utility Incident Intelligence & Hazard Correlation Platform</p>
+              <h1 className="text-lg font-bold tracking-tight text-white leading-tight">GridSignal</h1>
+              <p className="text-[11px] text-slate-400">Cross-Utility Incident Intelligence & Hazard Response</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <div className="flex items-center space-x-2 text-xs bg-slate-800/90 px-3 py-1.5 rounded-md border border-slate-700">
-              <span className={`inline-block w-2.5 h-2.5 rounded-full ${health?.status === 'ok' ? 'bg-emerald-400 shadow-emerald-400/50 shadow-sm animate-pulse' : 'bg-red-500'}`}></span>
-              <span className="text-slate-300 font-medium">API: {health?.status === 'ok' ? 'Healthy' : 'Connecting...'}</span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 text-xs text-slate-400 bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700/60">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span className="font-medium text-slate-300">Live Feed</span>
             </div>
-
-            <div className="flex items-center space-x-2 text-xs bg-slate-800/90 px-3 py-1.5 rounded-md border border-slate-700 text-slate-300">
-              <span>📡 Live Telemetry</span>
-            </div>
-
-            <a 
-              href={`${API_BASE}/docs`}
-              target="_blank"
-              rel="noreferrer"
-              className="px-3 py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-md border border-slate-700 transition-all flex items-center gap-1.5"
-            >
-              📖 Swagger Docs
-            </a>
 
             <button 
               onClick={fetchData}
               disabled={loading}
-              className="px-3.5 py-1.5 text-xs font-medium bg-teal-600 hover:bg-teal-500 text-white rounded-md shadow-sm transition-all flex items-center gap-1.5 disabled:opacity-50"
+              className="p-2 text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700 rounded-lg border border-slate-700/60 transition-all text-xs flex items-center justify-center disabled:opacity-50"
+              title="Refresh Telemetry"
             >
-              🔄 {loading ? 'Refreshing...' : 'Refresh'}
+              🔄
             </button>
           </div>
         </div>
@@ -109,25 +95,25 @@ export default function App() {
           <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Incidents</span>
             <div className="text-2xl font-bold text-slate-900 mt-1">{summary ? summary.total_incidents : '—'}</div>
-            <div className="text-xs text-slate-500 mt-0.5">Stored in SQLite</div>
+            <div className="text-xs text-slate-500 mt-0.5">Active Incidents Logged</div>
           </div>
 
           <div className="bg-white rounded-xl p-4 border border-orange-100 shadow-sm">
             <span className="text-xs font-semibold text-orange-600 uppercase tracking-wider">Gas Incidents</span>
             <div className="text-2xl font-bold text-orange-600 mt-1">{summary ? summary.total_gas : '—'}</div>
-            <div className="text-xs text-slate-500 mt-0.5">Utility: GAS</div>
+            <div className="text-xs text-slate-500 mt-0.5">Natural Gas Infrastructure</div>
           </div>
 
           <div className="bg-white rounded-xl p-4 border border-blue-100 shadow-sm">
             <span className="text-xs font-semibold text-blue-600 uppercase tracking-wider">Electric Incidents</span>
             <div className="text-2xl font-bold text-blue-600 mt-1">{summary ? summary.total_electric : '—'}</div>
-            <div className="text-xs text-slate-500 mt-0.5">Utility: ELECTRIC</div>
+            <div className="text-xs text-slate-500 mt-0.5">Power Distribution Grid</div>
           </div>
 
           <div className="bg-white rounded-xl p-4 border border-teal-200 shadow-sm ring-1 ring-teal-500/20">
             <span className="text-xs font-semibold text-teal-700 uppercase tracking-wider">Correlated Alerts</span>
             <div className="text-2xl font-bold text-teal-700 mt-1">{summary ? summary.total_alerts : '—'}</div>
-            <div className="text-xs text-teal-600 font-medium mt-0.5">Unique Pairs ≤200ft, ≤6hr</div>
+            <div className="text-xs text-teal-600 font-medium mt-0.5">Critical Cross-Hazard Pairs</div>
           </div>
         </div>
 
@@ -330,8 +316,8 @@ export default function App() {
 
       <footer className="bg-white border-t border-slate-200 text-slate-500 text-xs py-4 mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <div>GridSignal Mini · Internal Utility Incident Intelligence Platform</div>
-          <div className="font-mono text-slate-400">Django + SQLite + React</div>
+          <div>GridSignal Operations Console · Cross-Utility Hazard Dispatch</div>
+          <div className="text-slate-400">System Live · Active Monitoring</div>
         </div>
       </footer>
     </div>
