@@ -50,8 +50,7 @@
       const [utilityFilter, setUtilityFilter] = useState('');
       const [searchQuery, setSearchQuery] = useState('');
       const [loading, setLoading] = useState(true);
-      const [importing, setImporting] = useState(false);
-      const [lastAction, setLastAction] = useState(null);
+      const [lastSync, setLastSync] = useState(new Date().toLocaleTimeString());
       const [activeTab, setActiveTab] = useState('alerts');
 
       // Fetch summary, alerts, incidents, health
@@ -68,6 +67,7 @@
           setSummary(sRes);
           setAlerts(aRes);
           setIncidents(iRes);
+          setLastSync(new Date().toLocaleTimeString());
         } catch (err) {
           console.error("Failed to fetch dashboard data:", err);
         } finally {
@@ -77,22 +77,9 @@
 
       useEffect(() => {
         fetchData();
+        const timer = setInterval(fetchData, 15000);
+        return () => clearInterval(timer);
       }, [utilityFilter]);
-
-      const handleImport = async (type) => {
-        setImporting(true);
-        setLastAction(`Importing ${type} dataset...`);
-        try {
-          const res = await fetch(`/api/import/${type}`, { method: 'POST' });
-          const data = await res.json();
-          setLastAction(`Imported ${data.file_processed}: +${data.inserted_new} new, ${data.updated_conflicting} updated, ${data.skipped_identical} identical skipped, ${data.skipped_malformed} malformed skipped.`);
-          await fetchData();
-        } catch (err) {
-          setLastAction(`Import failed: ${err.message}`);
-        } finally {
-          setImporting(false);
-        }
-      };
 
       const filteredIncidents = useMemo(() => {
         return incidents.filter(inc => {
@@ -123,7 +110,7 @@
                       FastAPI Edition
                     </span>
                   </div>
-                  <p class="text-xs text-slate-400">Utility Incident Intelligence & Cross-Type Pair Correlation</p>
+                  <p class="text-xs text-slate-400">Utility Incident Intelligence & Hazard Correlation Platform</p>
                 </div>
               </div>
 
@@ -131,7 +118,13 @@
               <div class="flex items-center gap-2.5 flex-wrap">
                 <div class="flex items-center space-x-2 text-xs bg-slate-800/90 px-3 py-1.5 rounded-md border border-slate-700">
                   <span class={`inline-block w-2.5 h-2.5 rounded-full ${health?.status === 'ok' ? 'bg-emerald-400 shadow-emerald-400/50 shadow-sm animate-pulse' : 'bg-red-500'}`}></span>
-                  <span class="text-slate-300">API: {health?.status === 'ok' ? 'Healthy' : 'Connecting...'}</span>
+                  <span class="text-slate-300 font-medium">API: {health?.status === 'ok' ? 'Healthy' : 'Connecting...'}</span>
+                </div>
+
+                <div class="flex items-center space-x-2 text-xs bg-slate-800/90 px-3 py-1.5 rounded-md border border-slate-700 text-slate-300">
+                  <i class="fa-solid fa-satellite-dish text-teal-400"></i>
+                  <span>Live Telemetry</span>
+                  <span class="text-slate-500 font-mono text-[10px]">({lastSync})</span>
                 </div>
 
                 <a 
@@ -145,29 +138,9 @@
                 </a>
 
                 <button 
-                  onClick={() => handleImport('seed')}
-                  disabled={importing}
-                  class="px-3 py-1.5 text-xs font-medium bg-teal-600 hover:bg-teal-500 text-white rounded-md shadow-sm transition-all flex items-center gap-1.5 disabled:opacity-50"
-                  title="Import initial seed_incidents.csv"
-                >
-                  <i class="fa-solid fa-file-import"></i>
-                  Run Seed Import
-                </button>
-
-                <button 
-                  onClick={() => handleImport('replay')}
-                  disabled={importing}
-                  class="px-3 py-1.5 text-xs font-medium bg-amber-600 hover:bg-amber-500 text-white rounded-md shadow-sm transition-all flex items-center gap-1.5 disabled:opacity-50"
-                  title="Import replay_batch.csv with duplicates, updates, and malformed rows"
-                >
-                  <i class="fa-solid fa-rotate-right"></i>
-                  Run Replay Import
-                </button>
-
-                <button 
                   onClick={fetchData}
                   disabled={loading}
-                  class="px-3 py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-md border border-slate-700 transition-all flex items-center gap-1.5"
+                  class="px-3.5 py-1.5 text-xs font-medium bg-teal-600 hover:bg-teal-500 text-white rounded-md shadow-sm transition-all flex items-center gap-1.5 disabled:opacity-50"
                   title="Reload from API"
                 >
                   <i class={`fa-solid fa-arrows-rotate ${loading ? 'animate-spin' : ''}`}></i>
@@ -176,16 +149,6 @@
               </div>
             </div>
           </header>
-
-          {/* Activity / Notification Banner */}
-          {lastAction && (
-            <div class="bg-teal-950/80 border-b border-teal-800 text-teal-200 text-xs px-4 py-2 flex items-center justify-between">
-              <div class="max-w-7xl mx-auto w-full flex items-center justify-between">
-                <span><i class="fa-solid fa-circle-info mr-1.5 text-teal-400"></i>{lastAction}</span>
-                <button onClick={() => setLastAction(null)} class="text-teal-400 hover:text-white font-bold ml-4">✕</button>
-              </div>
-            </div>
-          )}
 
           {/* Main Dashboard Body */}
           <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full flex-1">

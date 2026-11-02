@@ -10,8 +10,6 @@ export default function App() {
   const [utilityFilter, setUtilityFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
-  const [importing, setImporting] = useState(false);
-  const [lastAction, setLastAction] = useState(null);
   const [activeTab, setActiveTab] = useState('alerts');
 
   const fetchData = async () => {
@@ -36,22 +34,9 @@ export default function App() {
 
   useEffect(() => {
     fetchData();
+    const timer = setInterval(fetchData, 15000);
+    return () => clearInterval(timer);
   }, [utilityFilter]);
-
-  const handleImport = async (type) => {
-    setImporting(true);
-    setLastAction(`Importing ${type} dataset...`);
-    try {
-      const res = await fetch(`${API_BASE}/api/import/${type}`, { method: 'POST' });
-      const data = await res.json();
-      setLastAction(`Imported ${data.file_processed}: +${data.inserted_new} new, ${data.updated_conflicting} updated, ${data.skipped_identical} identical skipped, ${data.skipped_malformed} malformed skipped.`);
-      await fetchData();
-    } catch (err) {
-      setLastAction(`Import failed: ${err.message}`);
-    } finally {
-      setImporting(false);
-    }
-  };
 
   const filteredIncidents = useMemo(() => {
     return incidents.filter(inc => {
@@ -79,54 +64,42 @@ export default function App() {
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-bold tracking-tight">GridSignal Mini</h1>
                 <span className="px-2 py-0.5 rounded text-xs font-semibold bg-teal-900/80 text-teal-300 border border-teal-700">
-                  Django Edition
+                  FastAPI Edition
                 </span>
               </div>
-              <p className="text-xs text-slate-400">Utility Incident Intelligence & Cross-Type Pair Correlation</p>
+              <p className="text-xs text-slate-400">Utility Incident Intelligence & Hazard Correlation Platform</p>
             </div>
           </div>
 
           <div className="flex items-center gap-2.5 flex-wrap">
             <div className="flex items-center space-x-2 text-xs bg-slate-800/90 px-3 py-1.5 rounded-md border border-slate-700">
               <span className={`inline-block w-2.5 h-2.5 rounded-full ${health?.status === 'ok' ? 'bg-emerald-400 shadow-emerald-400/50 shadow-sm animate-pulse' : 'bg-red-500'}`}></span>
-              <span className="text-slate-300">API: {health?.status === 'ok' ? 'Healthy' : 'Connecting...'}</span>
+              <span className="text-slate-300 font-medium">API: {health?.status === 'ok' ? 'Healthy' : 'Connecting...'}</span>
             </div>
 
-            <button 
-              onClick={() => handleImport('seed')}
-              disabled={importing}
-              className="px-3 py-1.5 text-xs font-medium bg-teal-600 hover:bg-teal-500 text-white rounded-md shadow-sm transition-all flex items-center gap-1.5 disabled:opacity-50"
-            >
-              Run Seed Import
-            </button>
+            <div className="flex items-center space-x-2 text-xs bg-slate-800/90 px-3 py-1.5 rounded-md border border-slate-700 text-slate-300">
+              <span>📡 Live Telemetry</span>
+            </div>
 
-            <button 
-              onClick={() => handleImport('replay')}
-              disabled={importing}
-              className="px-3 py-1.5 text-xs font-medium bg-amber-600 hover:bg-amber-500 text-white rounded-md shadow-sm transition-all flex items-center gap-1.5 disabled:opacity-50"
+            <a 
+              href={`${API_BASE}/docs`}
+              target="_blank"
+              rel="noreferrer"
+              className="px-3 py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-md border border-slate-700 transition-all flex items-center gap-1.5"
             >
-              Run Replay Import
-            </button>
+              📖 Swagger Docs
+            </a>
 
             <button 
               onClick={fetchData}
               disabled={loading}
-              className="px-3 py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-md border border-slate-700 transition-all flex items-center gap-1.5"
+              className="px-3.5 py-1.5 text-xs font-medium bg-teal-600 hover:bg-teal-500 text-white rounded-md shadow-sm transition-all flex items-center gap-1.5 disabled:opacity-50"
             >
-              {loading ? 'Refreshing...' : 'Refresh'}
+              🔄 {loading ? 'Refreshing...' : 'Refresh'}
             </button>
           </div>
         </div>
       </header>
-
-      {lastAction && (
-        <div className="bg-teal-950/80 border-b border-teal-800 text-teal-200 text-xs px-4 py-2 flex items-center justify-between">
-          <div className="max-w-7xl mx-auto w-full flex items-center justify-between">
-            <span>ℹ️ {lastAction}</span>
-            <button onClick={() => setLastAction(null)} className="text-teal-400 hover:text-white font-bold ml-4">✕</button>
-          </div>
-        </div>
-      )}
 
       {/* Main Container */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full flex-1">

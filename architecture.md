@@ -24,6 +24,7 @@ flowchart TD
         subgraph Endpoints["REST API Endpoints"]
             Health["GET /health"]
             Incidents["GET /incidents(?utility_type=)"]
+            CreateIncident["POST /incidents (JSON Ingest)"]
             Alerts["GET /alerts"]
             Summary["GET /summary"]
             SeedIngest["POST /api/import/seed"]

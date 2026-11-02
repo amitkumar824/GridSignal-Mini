@@ -4,7 +4,7 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.162.x-teal.svg)](https://fastapi.tiangolo.com/)
 [![SQLite](https://img.shields.io/badge/SQLite-3.x-lightgrey.svg)](https://www.sqlite.org/)
 [![React](https://img.shields.io/badge/React-18.x-cyan.svg)](https://react.dev/)
-[![Tests](https://img.shields.io/badge/Tests-15%20Passed-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/Tests-16%20Passed-brightgreen.svg)]()
 [![License](https://img.shields.io/badge/Evaluation-Technical%20Assessment-orange.svg)]()
 
 > **Technical Evaluation Submission**  
@@ -30,7 +30,7 @@
 | **Preferred Tech Stack** | Python + FastAPI + SQLite + React | ✅ 100% Match |
 | **Installation Instructions** | See [Quick Start & Installation](#-quick-start--installation) below | ✅ Complete |
 | **Architecture Diagram** | [`architecture.md`](architecture.md) & [Architecture Section](#-system-architecture) | ✅ Complete |
-| **Automated Tests** | 15 automated tests in [`tests/test_app.py`](tests/test_app.py) | ✅ 15/15 Passed |
+| **Automated Tests** | 16 automated tests in [`tests/test_app.py`](tests/test_app.py) | ✅ 16/16 Passed |
 | **Dashboard Screenshot** | [`docs/dashboard_screenshot.png`](docs/dashboard_screenshot.png) | ✅ Generated & Linked |
 | **Interactive API Docs** | Swagger UI at `http://localhost:8000/docs` | ✅ Complete |
 | **Vercel Deployment** | [`frontend/vercel.json`](frontend/vercel.json) + [Vercel Guide](#-vercel-deployment) | ✅ Ready to Deploy |
@@ -119,41 +119,43 @@ Open your browser to:
 - **ReDoc Alternative Docs**: [http://localhost:8000/redoc](http://localhost:8000/redoc)
 - **Health Check**: [http://localhost:8000/health](http://localhost:8000/health)
 - **Summary Metrics**: [http://localhost:8000/summary](http://localhost:8000/summary)
-- **Incidents API**: [http://localhost:8000/incidents](http://localhost:8000/incidents)
+- **Incidents Query API**: [http://localhost:8000/incidents](http://localhost:8000/incidents)
+- **Direct Real-Time Ingest API**: `POST /incidents` (JSON payload)
 - **Alerts API**: [http://localhost:8000/alerts](http://localhost:8000/alerts)
 
 ---
 
 ## 🧪 Running Automated Tests
 
-Run the automated test suite with `pytest` covering all boundary conditions, non-matches, deduplication policies, and API contracts:
+Run the automated test suite with `pytest` covering all boundary conditions, non-matches, deduplication policies, real-time REST API creation, and API contracts:
 
 ```bash
 pytest -v
 ```
 
-### Test Suite Execution Output (15 Tests)
+### Test Suite Execution Output (16 Tests)
 ```
 ============================= test session starts =============================
 platform win32 -- Python 3.13.14, pytest-9.2.0 -- E:\ny\.venv\Scripts\python.exe
 
 tests/test_app.py::TestBoundaryAndCorrelation::test_exact_boundary_conditions PASSED [  6%]
-tests/test_app.py::TestBoundaryAndCorrelation::test_boundary_distance_just_outside PASSED [ 13%]
-tests/test_app.py::TestBoundaryAndCorrelation::test_boundary_time_just_outside PASSED [ 20%]
-tests/test_app.py::TestBoundaryAndCorrelation::test_missing_coordinates_never_matches PASSED [ 26%]
-tests/test_app.py::TestBoundaryAndCorrelation::test_time_ordering_reversibility PASSED [ 33%]
-tests/test_app.py::TestBoundaryAndCorrelation::test_correlation_ignores_severity_status_area PASSED [ 40%]
-tests/test_app.py::TestBoundaryAndCorrelation::test_one_to_many_matches PASSED [ 46%]
-tests/test_app.py::TestIngestionAndDeduplication::test_idempotent_ingestion PASSED [ 53%]
-tests/test_app.py::TestIngestionAndDeduplication::test_conflicting_duplicates_last_write_wins PASSED [ 60%]
-tests/test_app.py::TestIngestionAndDeduplication::test_malformed_timestamp_gracefully_skipped PASSED [ 66%]
-tests/test_app.py::TestIngestionAndDeduplication::test_missing_coordinates_stored_as_null PASSED [ 73%]
-tests/test_app.py::TestApiEndpoints::test_get_health PASSED              [ 80%]
-tests/test_app.py::TestApiEndpoints::test_get_incidents PASSED           [ 86%]
-tests/test_app.py::TestApiEndpoints::test_get_alerts PASSED              [ 93%]
-tests/test_app.py::TestApiEndpoints::test_get_summary PASSED             [100%]
+tests/test_app.py::TestBoundaryAndCorrelation::test_boundary_distance_just_outside PASSED [ 12%]
+tests/test_app.py::TestBoundaryAndCorrelation::test_boundary_time_just_outside PASSED [ 18%]
+tests/test_app.py::TestBoundaryAndCorrelation::test_missing_coordinates_never_matches PASSED [ 25%]
+tests/test_app.py::TestBoundaryAndCorrelation::test_time_ordering_reversibility PASSED [ 31%]
+tests/test_app.py::TestBoundaryAndCorrelation::test_correlation_ignores_severity_status_area PASSED [ 37%]
+tests/test_app.py::TestBoundaryAndCorrelation::test_one_to_many_matches PASSED [ 43%]
+tests/test_app.py::TestIngestionAndDeduplication::test_idempotent_ingestion PASSED [ 50%]
+tests/test_app.py::TestIngestionAndDeduplication::test_conflicting_duplicates_last_write_wins PASSED [ 56%]
+tests/test_app.py::TestIngestionAndDeduplication::test_malformed_timestamp_gracefully_skipped PASSED [ 62%]
+tests/test_app.py::TestIngestionAndDeduplication::test_missing_coordinates_stored_as_null PASSED [ 68%]
+tests/test_app.py::TestApiEndpoints::test_get_health PASSED              [ 75%]
+tests/test_app.py::TestApiEndpoints::test_get_incidents PASSED           [ 81%]
+tests/test_app.py::TestApiEndpoints::test_get_alerts PASSED              [ 87%]
+tests/test_app.py::TestApiEndpoints::test_get_summary PASSED             [ 93%]
+tests/test_app.py::TestApiEndpoints::test_create_incident_json PASSED    [100%]
 
-============================= 15 passed in 4.48s ==============================
+============================= 16 passed in 1.88s ==============================
 ```
 
 ---
